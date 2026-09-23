@@ -56,7 +56,7 @@ textarea{resize:vertical;min-height:70px}
 .file-chip b{font-weight:600;overflow-wrap:anywhere}
 .file-chip small{color:var(--muted);display:block}
 .photo-row{display:flex;gap:12px;align-items:center}
-.ph{width:56px;height:56px;border-radius:50%;background:var(--surface-2);border:1px dashed var(--line);flex:none;overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:11px}
+.ph{width:56px;height:56px;border-radius:0;background:var(--surface-2);border:1px dashed var(--line);flex:none;overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:11px}
 .ph img{width:100%;height:100%;object-fit:cover}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500;display:inline-flex;gap:6px;align-items:center;justify-content:center}
 .btn:hover{border-color:var(--navy)}
@@ -105,7 +105,7 @@ details.more[open] summary{margin-bottom:8px}
 .paper [contenteditable]:empty::before{content:"(empty — will be left out)";color:#b33;font-style:italic;font-size:8pt}
 .p-head{position:relative;height:141pt;border-bottom:.75pt solid #AAA;margin:0 -1pt 0 -3pt}
 .p-logo{position:absolute;left:3pt;top:35pt;width:112pt;height:auto}
-.p-photo{position:absolute;right:0;top:30pt;width:66pt;height:66pt;border-radius:50%;overflow:hidden;background:#F2F4F8;border:1pt dashed #B8C2D3;display:grid;place-items:center;cursor:pointer;color:#6B778C;font:600 7.5pt/1.2 var(--ui);text-align:center;padding:0}
+.p-photo{position:absolute;right:0;top:30pt;width:66pt;height:66pt;border-radius:0;overflow:hidden;background:#F2F4F8;border:1pt dashed #B8C2D3;display:grid;place-items:center;cursor:pointer;color:#6B778C;font:600 7.5pt/1.2 var(--ui);text-align:center;padding:0}
 .p-photo.has{border:0;background:#fff}
 .p-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .p-name{position:absolute;left:120pt;right:80pt;top:64pt;text-align:center;font-size:20pt;font-weight:700;color:#000;line-height:1.15}
@@ -879,7 +879,7 @@ async function buildPdf() {
 
   // header
   doc.addImage(LOGO, "PNG", 36, 35, 112, 24.4);
-  if (S.photo) { try { doc.addImage(await circlePng(S.photo), "PNG", PW - 34 - 66, 30, 66, 66); } catch {} }
+  if (S.photo) { try { doc.addImage(S.photo, "JPEG", PW - 34 - 66, 30, 66, 66); } catch {} }
   let ns = 20; doc.setFont("times", "bold"); doc.setFontSize(ns);
   while (doc.getTextWidth(name) > 320 && ns > 14) { ns--; doc.setFontSize(ns); }
   font("bold", ns, BLACK); doc.text(name, PW / 2, 67, { align: "center", baseline: "top" });
