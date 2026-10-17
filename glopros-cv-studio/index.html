@@ -539,35 +539,124 @@ function getSeg() {
     return tf.loadGraphModel(tf.io.fromMemory({ modelTopology: SEG_MODEL.modelTopology, weightSpecs: SEG_MODEL.weights, weightData: bin, format: SEG_MODEL.format, generatedBy: SEG_MODEL.generatedBy, convertedBy: SEG_MODEL.convertedBy }));
   })().catch((e) => { segPromise = null; throw e; }));
 }
-/* Finds the person with an on-device segmentation model and puts them on pure white. Returns null if no person is found. */
-async function whiteBackground(dataUrl) {
-  const img = await loadImg(dataUrl);
-  const W = img.naturalWidth, H = img.naturalHeight;
-  const model = await getSeg();
-  const m = tf.tidy(() => model.execute(tf.browser.fromPixels(img).toFloat().div(255).resizeBilinear([256, 256]).expandDims(0)).squeeze());
-  const d = await m.data(); m.dispose();
-  let mean = 0; for (let i = 0; i < d.length; i++) mean += d[i]; mean /= d.length;
-  if (mean < 0.08) return null;
-  const mc = document.createElement("canvas"); mc.width = mc.height = 256;
-  const mx = mc.getContext("2d"), id = mx.createImageData(256, 256);
-  for (let i = 0; i < d.length; i++) id.data[i * 4 + 3] = Math.round(255 * Math.max(0, Math.min(1, (d[i] - 0.45) / 0.3)));
-  mx.putImageData(id, 0, 0);
-  const pc = document.createElement("canvas"); pc.width = W; pc.height = H;
-  const px = pc.getContext("2d");
-  px.drawImage(img, 0, 0);
-  px.globalCompositeOperation = "destination-in"; px.imageSmoothingEnabled = true; px.imageSmoothingQuality = "high";
-  px.filter = `blur(${Math.max(1, W / 320)}px)`; px.drawImage(mc, 0, 0, W, H); px.filter = "none";
-  const out = document.createElement("canvas"); out.width = W; out.height = H;
-  const ox = out.getContext("2d"); ox.fillStyle = "#fff"; ox.fillRect(0, 0, W, H); ox.drawImage(pc, 0, 0);
-  return out.toDataURL("image/jpeg", 0.92);
+/* box mean over a (2r+1)^2 window via an integral image */
+function boxMean(src, w, h, r) {
+  const W1 = w + 1, I = new Float64Array(W1 * (h + 1));
+  for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += src[y * w + x]; I[(y + 1) * W1 + x + 1] = I[y * W1 + x + 1] + row; } }
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+      out[y * w + x] = (I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0]) / ((y1 - y0) * (x1 - x0));
+    }
+  }
+  return out;
 }
-async function finishPhoto(url, note, uploaded) {
+/* edge-aware smoothing of the alpha matte, guided by the photo itself (He et al. guided filter) */
+function guidedFilter(I, p, w, h, r, eps) {
+  const n = w * h, Ip = new Float32Array(n), II = new Float32Array(n);
+  for (let i = 0; i < n; i++) { Ip[i] = I[i] * p[i]; II[i] = I[i] * I[i]; }
+  const mI = boxMean(I, w, h, r), mp = boxMean(p, w, h, r), mIp = boxMean(Ip, w, h, r), mII = boxMean(II, w, h, r);
+  const a = new Float32Array(n), b = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const v = mII[i] - mI[i] * mI[i]; a[i] = (mIp[i] - mI[i] * mp[i]) / (v + eps); b[i] = mp[i] - a[i] * mI[i]; }
+  const ma = boxMean(a, w, h, r), mb = boxMean(b, w, h, r), q = new Float32Array(n);
+  for (let i = 0; i < n; i++) q[i] = Math.max(0, Math.min(1, ma[i] * I[i] + mb[i]));
+  return q;
+}
+/* keep the main person: the largest connected blob, plus soft edges next to it */
+function cleanMask(alpha, w, h) {
+  const n = w * h, lab = new Int32Array(n), stack = new Int32Array(n);
+  let best = 0, bestSize = 0, cur = 0;
+  for (let i = 0; i < n; i++) {
+    if (alpha[i] < 0.5 || lab[i]) continue;
+    cur++; let sp = 0, size = 0; stack[sp++] = i; lab[i] = cur;
+    while (sp) { const k = stack[--sp]; size++; const x = k % w, y = (k / w) | 0;
+      if (x > 0 && !lab[k - 1] && alpha[k - 1] >= 0.5) { lab[k - 1] = cur; stack[sp++] = k - 1; }
+      if (x < w - 1 && !lab[k + 1] && alpha[k + 1] >= 0.5) { lab[k + 1] = cur; stack[sp++] = k + 1; }
+      if (y > 0 && !lab[k - w] && alpha[k - w] >= 0.5) { lab[k - w] = cur; stack[sp++] = k - w; }
+      if (y < h - 1 && !lab[k + w] && alpha[k + w] >= 0.5) { lab[k + w] = cur; stack[sp++] = k + w; } }
+    if (size > bestSize) { bestSize = size; best = cur; }
+  }
+  if (!best) return null;
+  const keep = new Float32Array(n);
+  for (let i = 0; i < n; i++) keep[i] = lab[i] === best ? 1 : 0;
+  // soft gate: alpha survives only on/near the kept blob
+  const near = boxMean(keep, w, h, Math.max(2, Math.round(w / 160)));
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = keep[i] ? alpha[i] : alpha[i] * Math.min(1, near[i] * 2);
+  return out;
+}
+/* Finds the person with an on-device segmentation model, smooths the cut-out edge,
+   puts them on pure white and frames them in a centred square. Returns null if no person is found. */
+async function whiteBackground(source) {
+  const img = typeof source === "string" ? await loadImg(source) : source;
+  const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+  // work on a square, white-padded copy at up to 768px so nothing is stretched
+  const N = Math.min(768, Math.max(sw, sh)), k = N / Math.max(sw, sh);
+  const dw = Math.round(sw * k), dh = Math.round(sh * k), ox = (N - dw) >> 1, oy = (N - dh) >> 1;
+  const wc = document.createElement("canvas"); wc.width = wc.height = N;
+  const wx = wc.getContext("2d", { willReadFrequently: true });
+  wx.fillStyle = "#fff"; wx.fillRect(0, 0, N, N); wx.imageSmoothingQuality = "high"; wx.drawImage(img, ox, oy, dw, dh);
+  const model = await getSeg();
+  const m = tf.tidy(() => {
+    const x = tf.browser.fromPixels(wc).toFloat().div(255).resizeBilinear([256, 256]).expandDims(0);
+    return model.execute(x).resizeBilinear([N, N]).squeeze();
+  });
+  const raw = await m.data(); m.dispose();
+  let mean = 0; for (let i = 0; i < raw.length; i++) mean += raw[i]; mean /= raw.length;
+  if (mean < 0.05) return null;
+  const px = wx.getImageData(0, 0, N, N).data, gray = new Float32Array(N * N);
+  for (let i = 0; i < N * N; i++) gray[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
+  let alpha = new Float32Array(N * N);
+  for (let i = 0; i < N * N; i++) alpha[i] = Math.max(0, Math.min(1, (raw[i] - 0.35) / 0.3));
+  alpha = cleanMask(alpha, N, N);
+  if (!alpha) return null;
+  alpha = guidedFilter(gray, alpha, N, N, Math.max(3, Math.round(N / 96)), 1e-3);
+  // plain backdrops (black, grey, coloured): also clear backdrop-coloured gaps in hair and around the shoulders
+  let n0 = 0, mr = 0, mg = 0, mb = 0;
+  for (let y = oy; y < oy + dh; y++) for (let x = ox; x < ox + dw; x++) { const i = y * N + x; if (raw[i] < 0.08) { n0++; mr += px[i * 4]; mg += px[i * 4 + 1]; mb += px[i * 4 + 2]; } }
+  if (n0 > N * N * 0.05) {
+    mr /= n0; mg /= n0; mb /= n0;
+    let v = 0;
+    for (let y = oy; y < oy + dh; y += 2) for (let x = ox; x < ox + dw; x += 2) { const i = y * N + x; if (raw[i] < 0.08) v += (px[i * 4] - mr) ** 2 + (px[i * 4 + 1] - mg) ** 2 + (px[i * 4 + 2] - mb) ** 2; }
+    const sd = Math.sqrt(v / (n0 / 4) / 3);
+    if (sd < 22) for (let i = 0; i < N * N; i++) {
+      if (alpha[i] >= 0.999 && raw[i] > 0.97) continue;
+      const d = Math.sqrt((px[i * 4] - mr) ** 2 + (px[i * 4 + 1] - mg) ** 2 + (px[i * 4 + 2] - mb) ** 2);
+      const t = Math.max(0, Math.min(1, (d - 12) / 30));
+      alpha[i] *= t * t * (3 - 2 * t);
+    }
+  }
+  // tighten the soft band so edges read clean instead of hazy, then anti-alias
+  for (let i = 0; i < N * N; i++) { const t = Math.max(0, Math.min(1, (alpha[i] - 0.3) / 0.45)); alpha[i] = t * t * (3 - 2 * t); }
+  alpha = boxMean(alpha, N, N, 1);
+  // composite on white
+  const out = wx.getImageData(0, 0, N, N), o = out.data;
+  let x0 = N, y0 = N, x1 = 0, y1 = 0;
+  for (let i = 0; i < N * N; i++) {
+    const a = alpha[i] < 0.04 ? 0 : alpha[i] > 0.96 ? 1 : alpha[i];
+    o[i * 4] = o[i * 4] * a + 255 * (1 - a); o[i * 4 + 1] = o[i * 4 + 1] * a + 255 * (1 - a); o[i * 4 + 2] = o[i * 4 + 2] * a + 255 * (1 - a); o[i * 4 + 3] = 255;
+    if (a > 0.5) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  wx.putImageData(out, 0, 0);
+  // frame: square around the person, small headroom, person centred
+  const bw = x1 - x0, bh = y1 - y0;
+  const side = Math.min(N * 1.2, Math.max(bw * 1.12, Math.min(bh, bw * 1.6) * 1.08, N * 0.35));
+  const cx = (x0 + x1) / 2, top = y0 - side * 0.07;
+  const fc = document.createElement("canvas"); fc.width = fc.height = 600;
+  const fx = fc.getContext("2d"); fx.fillStyle = "#fff"; fx.fillRect(0, 0, 600, 600); fx.imageSmoothingQuality = "high";
+  fx.drawImage(wc, cx - side / 2, top, side, side, 0, 0, 600, 600);
+  return fc.toDataURL("image/jpeg", 0.95);
+}
+async function finishPhoto(source, note, uploaded) {
   S.photoUploaded = !!uploaded;
   $("phNote").textContent = "Making the background white…";
   let out = null;
-  try { out = await whiteBackground(url); } catch {}
+  try { out = await whiteBackground(source); } catch {}
   S.photoWhite = !!out;
-  setPhoto(out || url, out ? `${note} Background set to white.` : `${note} The background couldn't be changed automatically. Upload a photo with a plain background if it isn't white.`);
+  const fallback = typeof source === "string" ? source : squareHeadshot(source);
+  setPhoto(out || fallback, out ? `${note} Square, on white, edges smoothed.` : `${note} The background couldn't be changed automatically. Upload a photo with a plain background if it isn't white.`);
 }
 function setPhoto(dataUrl, note) {
   S.photo = dataUrl; S.photoNote = note || "";
@@ -581,7 +670,7 @@ function setPhoto(dataUrl, note) {
 async function handlePhotoFile(file) {
   if (!file) return;
   const url = URL.createObjectURL(file);
-  try { const i = await loadImg(url); await finishPhoto(squareHeadshot(i), "Uploaded photo.", true); }
+  try { const i = await loadImg(url); await finishPhoto(i, "Uploaded photo.", true); }
   catch { toast("That image couldn't be opened. Try a JPG or PNG."); }
   finally { URL.revokeObjectURL(url); }
 }
@@ -671,7 +760,7 @@ async function pickHeadshot(sample) {
   let limits = null; try { limits = await sample.limits(); } catch {}
   if (!limits || !limits.images) {
     const best = cands.slice().sort((a, b) => b.width * b.height - a.width * a.height)[0];
-    return { url: squareHeadshot(best), note: "Picked from the CV automatically. Check it's the candidate." };
+    return { url: best, note: "Picked from the CV automatically. Check it's the candidate." };
   }
   const use = cands.slice(0, Math.min(limits.images.maxCount || 1, 4));
   const blobs = await Promise.all(use.map((c) => new Promise((r) => {
@@ -682,7 +771,7 @@ async function pickHeadshot(sample) {
   try {
     const r = await sample.json(`These ${blobs.length} image(s) were embedded in a CV, in order (index 0 first). Which one is a portrait photo of a person suitable as a CV headshot? Reply with only {"index": n}, or {"index": -1} if none is a photo of a person.`, { images: blobs.filter(Boolean), modelTier: "quick" });
     const i = Number(r && r.index);
-    if (Number.isInteger(i) && i >= 0 && i < use.length) return { url: squareHeadshot(use[i]), note: "Taken from the CV." };
+    if (Number.isInteger(i) && i >= 0 && i < use.length) return { url: use[i], note: "Taken from the CV." };
     return { url: null, note: "The CV has no photo of the candidate. Upload one if you have it." };
   } catch { return null; }
 }
