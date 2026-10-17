@@ -984,19 +984,34 @@ async function buildPdf() {
   const bump = (col) => { pageMax[col.page] = Math.max(pageMax[col.page] || 0, col.y); };
   const font = (style, size, color) => { doc.setFont("times", style); doc.setFontSize(size); doc.setTextColor(...color); };
   const go = (col) => doc.setPage(col.page);
-  function ensure(col, need) {
-    if (col.y + need > BOTTOM) {
-      col.page++; while (doc.getNumberOfPages() < col.page) doc.addPage();
-      col.y = TOP2; pageMax[col.page] = pageMax[col.page] || TOP2;
-    }
-    go(col);
+  function newPage(col) {
+    col.page++; while (doc.getNumberOfPages() < col.page) doc.addPage();
+    col.y = TOP2; pageMax[col.page] = pageMax[col.page] || TOP2; go(col);
   }
-  function heading(col, t, reserve) {
-    ensure(col, 19 + (reserve || 24));
+  function ensure(col, need) { if (col.y + need > BOTTOM) newPage(col); else go(col); }
+  const count = (text, style, size, w, raw) => { font(style, size, INK); return doc.splitTextToSize(raw ? text : T(text), w).length; };
+  const bulletH = (col, t, size, lh, gap) => count(t, "normal", size, col.w - 11) * lh + gap;
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  /* Page-break planner for "header + bullet list" blocks: never split a bullet, never strand a header,
+     and leave at least two bullets on each side of a break. Returns the index of the first bullet
+     that goes to the next page (or the list length when the block fits). */
+  function plan(col, headH, hs) {
+    const n = hs.length;
+    if (col.y + headH + sum(hs) <= BOTTOM) return n;
+    if (col.y === TOP2) return n;              // already at the top of a page: just flow
+    let used = col.y + headH, k = 0;
+    while (k < n && used + hs[k] <= BOTTOM) used += hs[k++];
+    if (n - k === 1 && k >= 3) k--;            // don't leave a lone bullet on the next page
+    if (k === 0 || (n >= 2 && k < 2) || n - k === 1) { newPage(col); return n; }
+    return k;
+  }
+  function heading(col, t) {
+    go(col);
     font("bold", 10, NAVY); doc.text(T(t).toUpperCase(), col.x, col.y, { baseline: "top" });
     doc.setDrawColor(...NAVY); doc.setLineWidth(0.6); doc.line(col.x - 2, col.y + 12.5, col.x + col.w, col.y + 12.5);
     col.y += 19; bump(col);
   }
+  const HEAD_H = 19;
   function lines(col, text, style, size, color, lh, indent, raw) {
     font(style, size, color);
     const ls = doc.splitTextToSize(raw ? text : T(text), col.w - (indent || 0));
@@ -1005,10 +1020,13 @@ async function buildPdf() {
   function bullet(col, text, size, lh, gap) {
     font("normal", size, INK);
     const ls = doc.splitTextToSize(T(text), col.w - 11);
-    ensure(col, lh * Math.min(ls.length, 2));
+    ensure(col, lh * ls.length);               // a bullet is never split across pages
     font("normal", 10, BLACK); doc.text("•", col.x + 2, col.y - 0.5, { baseline: "top" });
-    ls.forEach((l, i) => { if (i) ensure(col, lh); font("normal", size, INK); doc.text(l, col.x + 11, col.y, { baseline: "top" }); col.y += lh; bump(col); });
+    ls.forEach((l) => { font("normal", size, INK); doc.text(l, col.x + 11, col.y, { baseline: "top" }); col.y += lh; bump(col); });
     col.y += gap;
+  }
+  function bullets(col, items, k, size, lh, gap) {
+    items.forEach((it, i) => { if (i === k && i > 0) newPage(col); bullet(col, it, size, lh, gap); });
   }
 
   // header
@@ -1027,41 +1045,58 @@ async function buildPdf() {
   if (cv.location) { lines(L, T(cv.location).toUpperCase(), "bold", 9.5, BLACK, 11); L.y += 12; } else L.y += 10;
   for (const [k, label] of LEFT) {
     const items = arr(cv[k]); if (!items.length) continue;
-    heading(L, label, 15);
-    items.forEach((it) => bullet(L, it, 9, 10.2, 4.3));
+    const hs = items.map((it) => bulletH(L, it, 9, 10.2, 4.3));
+    const brk = plan(L, HEAD_H, hs);
+    heading(L, label);
+    bullets(L, items, brk, 9, 10.2, 4.3);
     L.y += 9;
   }
 
   // right column
   const R = { x: 215, w: 346, y: 164, page: 1 };
-  if (cv.summary) { heading(R, "Summary"); lines(R, cv.summary, "normal", 9.5, INK, 10.9); R.y += 12; }
+  const B = (t) => bulletH(R, t, 9.5, 10.9, 2.2);
+  if (cv.summary) {
+    plan(R, HEAD_H + count(cv.summary, "normal", 9.5, R.w) * 10.9, []);
+    heading(R, "Summary"); lines(R, cv.summary, "normal", 9.5, INK, 10.9); R.y += 12;
+  }
   if (cv.key_projects.length) {
-    heading(R, "Key Projects");
-    cv.key_projects.forEach((p) => {
-      ensure(R, 40);
-      if (p.title) { lines(R, p.title, "bold", 10, NAVY, 12.5); }
-      if (p.subtitle) { lines(R, p.subtitle, "italic", 9.5, MUTED, 12); }
+    cv.key_projects.forEach((p, i) => {
+      const bl = arr(p.bullets);
+      const headH = (i === 0 ? HEAD_H : 0) + (p.title ? count(p.title, "bold", 10, R.w) * 12.5 : 0) + (p.subtitle ? count(p.subtitle, "italic", 9.5, R.w) * 12 : 0) + 2;
+      const brk = plan(R, headH, bl.map(B));
+      if (i === 0) heading(R, "Key Projects");
+      if (p.title) lines(R, p.title, "bold", 10, NAVY, 12.5);
+      if (p.subtitle) lines(R, p.subtitle, "italic", 9.5, MUTED, 12);
       R.y += 2;
-      arr(p.bullets).forEach((b) => bullet(R, b, 9.5, 10.9, 2.2));
+      bullets(R, bl, brk, 9.5, 10.9, 2.2);
       R.y += 7;
     });
     R.y += 4;
   }
   if (cv.experience.length) {
-    heading(R, "Professional Experience", 48);
-    R.y += 4;
-    cv.experience.forEach((x) => {
-      ensure(R, 48);
-      if (x.role) lines(R, x.role, "bold", 10.5, NAVY, 13.5);
+    cv.experience.forEach((x, i) => {
+      const ach = arr(x.achievements);
       const meta = [x.company, x.dates].map(T).filter(Boolean).join("   |   ");
+      const headH = (i === 0 ? HEAD_H + 4 : 0)
+        + (x.role ? count(x.role, "bold", 10.5, R.w) * 13.5 : 0)
+        + (meta ? count(meta, "italic", 9.5, R.w, true) * 13.5 : 0)
+        + (x.description ? count(x.description, "normal", 9.5, R.w) * 10.9 + 3 : 0)
+        + (ach.length ? 13 : 0);
+      const brk = plan(R, headH, ach.map(B));
+      if (i === 0) { heading(R, "Professional Experience"); R.y += 4; }
+      if (x.role) lines(R, x.role, "bold", 10.5, NAVY, 13.5);
       if (meta) lines(R, meta, "italic", 9.5, MUTED, 13.5, 0, true);
       if (x.description) { R.y += 0.5; lines(R, x.description, "normal", 9.5, INK, 10.9); R.y += 2.5; }
-      const ach = arr(x.achievements);
-      if (ach.length) { ensure(R, 26); lines(R, "Key achievements:", "bold", 9.5, INK, 13); ach.forEach((a) => bullet(R, a, 9.5, 10.9, 2.2)); }
+      if (ach.length) { lines(R, "Key achievements:", "bold", 9.5, INK, 13); bullets(R, ach, brk, 9.5, 10.9, 2.2); }
       R.y += 10;
     });
   }
-  cv.extra.forEach((x) => { R.y += 2; heading(R, x.heading); arr(x.items).forEach((a) => bullet(R, a, 9.5, 10.9, 2.2)); R.y += 8; });
+  cv.extra.forEach((x) => {
+    const items = arr(x.items);
+    R.y += 2;
+    const brk = plan(R, HEAD_H, items.map(B));
+    heading(R, x.heading); bullets(R, items, brk, 9.5, 10.9, 2.2); R.y += 8;
+  });
 
   // vertical divider on each page
   const pages = doc.getNumberOfPages();
