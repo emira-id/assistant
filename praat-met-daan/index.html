@@ -1,0 +1,1801 @@
+<title>Praat met Daan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+/* Layout: a HUD bar on top; the game is a Delft-tile portrait column beside a chat column, stacking to one column on phones. */
+:root{
+  --tile:#F2F5FB; --surface:#FFFFFF; --surface-2:#EBF0F8; --ink:#14213D; --muted:#56627A; --line:#D2DBEA;
+  --delft:#1E4DA6; --delft-ink:#FFFFFF; --delft-soft:#E0E9F8; --grid:rgba(30,77,166,.07);
+  --oranje:#B95500; --oranje-fill:#F07A1A; --oranje-soft:#FDEBDA; --oranje-ink:#2A1600;
+  --good:#1B7A4C; --good-bg:#DFF2E7; --warn:#8A5A00; --warn-bg:#FBEFD7; --bad:#B3261E; --bad-bg:#FAE3E1;
+  --heart:#D23F5B; --scrim:rgba(12,18,34,.55);
+  --shadow:0 1px 2px rgba(20,33,61,.06),0 10px 28px rgba(20,33,61,.08);
+  --f-display:"Bricolage Grotesque","Avenir Next","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --tile:#0C1323; --surface:#131C30; --surface-2:#1A253D; --ink:#E7EDF8; --muted:#9BA8C1; --line:#27334E;
+    --delft:#8AACF3; --delft-ink:#0C1323; --delft-soft:#1B2947; --grid:rgba(138,172,243,.06);
+    --oranje:#FFA45C; --oranje-fill:#FF8A30; --oranje-soft:#3A2512; --oranje-ink:#1A0F05;
+    --good:#72D2A0; --good-bg:#143020; --warn:#EBB95F; --warn-bg:#33270F; --bad:#F3968E; --bad-bg:#3A1815;
+    --heart:#FF7C93; --scrim:rgba(0,0,0,.6);
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --tile:#0C1323; --surface:#131C30; --surface-2:#1A253D; --ink:#E7EDF8; --muted:#9BA8C1; --line:#27334E;
+  --delft:#8AACF3; --delft-ink:#0C1323; --delft-soft:#1B2947; --grid:rgba(138,172,243,.06);
+  --oranje:#FFA45C; --oranje-fill:#FF8A30; --oranje-soft:#3A2512; --oranje-ink:#1A0F05;
+  --good:#72D2A0; --good-bg:#143020; --warn:#EBB95F; --warn-bg:#33270F; --bad:#F3968E; --bad-bg:#3A1815;
+  --heart:#FF7C93; --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;box-sizing:border-box}
+body{min-height:100%;background-color:var(--tile);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),radial-gradient(circle at 38px 38px,var(--grid) 0 5px,transparent 5.5px);
+  background-size:76px 76px;background-position:-1px -1px,-1px -1px,0 0}
+body.mode-game{height:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--delft);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.1}
+p{margin:0}
+.ic{width:20px;height:20px;flex:none;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.eyebrow{font-size:12.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--delft)}
+.note{font-size:14px;color:var(--muted)}
+
+.app{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 18px;display:flex;flex-direction:column;gap:14px;min-height:100%}
+body.mode-game .app{height:100%}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:16px;background:var(--delft);color:var(--delft-ink);min-height:46px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--delft);box-shadow:inset 0 0 0 1.5px var(--delft)}
+.btn.reward{background:var(--oranje-fill);color:var(--oranje-ink)}
+.btn.small{padding:8px 12px;min-height:38px;font-size:14.5px}
+.btn.danger{background:var(--bad-bg);color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad)}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--delft);display:grid;place-items:center;flex:none}
+.icon-btn:disabled{opacity:.45;cursor:not-allowed}
+.linkbtn{background:none;border:0;padding:0;color:var(--delft);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+
+/* HUD */
+.hud{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:8px 10px 8px 14px;box-shadow:var(--shadow)}
+.brand{font-family:var(--f-display);font-weight:800;font-size:19px;color:var(--delft);background:none;border:0;padding:4px 2px;letter-spacing:-.01em}
+.lvl{display:flex;align-items:center;gap:10px;flex:1 1 210px;max-width:340px;min-width:0}
+.lvl-code{font-family:var(--f-display);font-weight:800;font-size:19px;width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:9px;background:var(--delft);color:var(--delft-ink);box-shadow:inset 0 0 0 3px var(--delft),inset 0 0 0 4.5px var(--delft-ink)}
+.lvl-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.lvl-row{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;font-variant-numeric:tabular-nums}
+.lvl-row b{font-size:14.5px}
+.lvl-row span{color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
+.bar i{display:block;height:100%;width:0;background:var(--oranje-fill);border-radius:inherit;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.bar.heart i{background:var(--heart)}
+.stats{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.stat{display:flex;align-items:center;gap:5px;font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;white-space:nowrap}
+.stat .ic{width:19px;height:19px}
+.stat.combo .ic{color:var(--oranje-fill)}
+.stat.klik .ic{color:var(--heart)}
+.stat.days .ic{color:var(--delft)}
+.stat small{font-weight:400;color:var(--muted);font-size:13px}
+.ring{width:22px;height:22px}
+.ring .track{fill:none;stroke:var(--surface-2);stroke-width:5}
+.ring .arc{fill:none;stroke:var(--good);stroke-width:5;stroke-linecap:round;transition:stroke-dasharray .6s}
+.hud-nav{margin-left:auto;display:flex;gap:6px}
+.navbtn{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:700;font-size:15px;min-height:42px}
+.navbtn[aria-current="page"]{background:var(--delft-soft);border-color:var(--delft);color:var(--delft)}
+@media (max-width:700px){
+  .brand,.navbtn span,.stat small{display:none}
+  .hud{padding:8px 10px;gap:8px 12px}
+  .lvl{flex-basis:100%;max-width:none;order:-1}
+  .navbtn{padding:8px 10px}
+}
+
+/* Delft tile frame */
+.tileframe{position:relative;background:var(--surface);border:2px solid var(--delft);border-radius:8px;padding:10px;box-shadow:var(--shadow)}
+.tileframe .portrait{border:1.5px solid var(--delft);border-radius:4px;overflow:hidden;background:var(--surface-2);line-height:0}
+.orn{position:absolute;width:20px;height:20px;pointer-events:none}
+.orn.tl{top:2px;left:2px;background:radial-gradient(circle at 0 0,var(--delft) 0 4.5px,transparent 5px),radial-gradient(circle at 0 0,transparent 0 7.5px,var(--delft) 8px 9.5px,transparent 10px)}
+.orn.tr{top:2px;right:2px;background:radial-gradient(circle at 100% 0,var(--delft) 0 4.5px,transparent 5px),radial-gradient(circle at 100% 0,transparent 0 7.5px,var(--delft) 8px 9.5px,transparent 10px)}
+.orn.bl{bottom:2px;left:2px;background:radial-gradient(circle at 0 100%,var(--delft) 0 4.5px,transparent 5px),radial-gradient(circle at 0 100%,transparent 0 7.5px,var(--delft) 8px 9.5px,transparent 10px)}
+.orn.br{bottom:2px;right:2px;background:radial-gradient(circle at 100% 100%,var(--delft) 0 4.5px,transparent 5px),radial-gradient(circle at 100% 100%,transparent 0 7.5px,var(--delft) 8px 9.5px,transparent 10px)}
+
+/* Daan, the character */
+.daan{width:100%;height:auto;display:block}
+.daan .m,.daan .br,.daan .arc{display:none}
+.daan[data-mood="happy"] .m-smile,.daan[data-mood="laugh"] .m-laugh,.daan[data-mood="think"] .m-think,.daan[data-mood="surprised"] .m-o,.daan[data-mood="impressed"] .m-grin,.daan[data-mood="wink"] .m-smirk,.daan[data-mood="concerned"] .m-worry{display:inline}
+.daan[data-mood="happy"] .br-normal,.daan[data-mood="wink"] .br-normal,.daan[data-mood="laugh"] .br-up,.daan[data-mood="surprised"] .br-up,.daan[data-mood="impressed"] .br-up,.daan[data-mood="think"] .br-think,.daan[data-mood="concerned"] .br-worry{display:inline}
+.daan[data-mood="laugh"] .eye-open{display:none}
+.daan[data-mood="laugh"] .arc{display:inline}
+.daan[data-mood="wink"] .eye-open.r{display:none}
+.daan[data-mood="wink"] .arc.r{display:inline}
+.daan.talking .m{display:none!important}
+.daan.talking .m.m-talk{display:inline!important;animation:talk .24s ease-in-out infinite alternate}
+.daan .m-talk{transform-box:fill-box;transform-origin:50% 25%}
+.daan .iris{transition:transform .4s}
+.daan[data-mood="think"] .iris{transform:translate(-2.5px,-3px)}
+.daan[data-mood="surprised"] .iris{transform:scale(.92)}
+.daan .head{transform-box:view-box;transform-origin:160px 250px;transition:transform .6s cubic-bezier(.3,.7,.3,1)}
+.daan[data-mood="think"] .head{transform:rotate(-3deg)}
+.daan[data-mood="laugh"] .head{transform:rotate(2deg) translateY(-2px)}
+.daan[data-mood="surprised"] .head{transform:translateY(-3px)}
+.daan[data-mood="concerned"] .head{transform:rotate(2.5deg)}
+.daan .eye-open{transform-box:fill-box;transform-origin:50% 50%;animation:blink 5.4s infinite}
+.daan .bob{animation:bob 6s ease-in-out infinite}
+.daan .blush{fill:#F0868A;opacity:var(--blush,.15);transition:opacity 1s}
+.daan .ripples{animation:shimmer 4.5s ease-in-out infinite alternate}
+.daan .flake{animation:fall var(--dur,9s) linear infinite;animation-delay:var(--d,0s)}
+.daan .spark{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}95.5%{transform:scaleY(.08)}}
+@keyframes talk{from{transform:scaleY(.3)}to{transform:scaleY(1)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(1.6px)}}
+@keyframes shimmer{from{transform:translateX(-4px)}to{transform:translateX(5px)}}
+@keyframes fall{from{transform:translateY(-40px)}to{transform:translateY(330px)}}
+@keyframes twinkle{0%,100%{opacity:.15;transform:scale(.6)}50%{opacity:1;transform:scale(1)}}
+
+/* Start */
+.start{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:48px;align-items:center;max-width:1080px;width:100%;margin:0 auto;padding-block:28px 40px}
+.start-art{position:relative;max-width:420px;width:100%;justify-self:center}
+.demo{position:absolute;right:-28px;bottom:-22px;max-width:270px;background:var(--surface);border:1.5px solid var(--delft);border-radius:16px 16px 16px 4px;padding:12px 14px;box-shadow:var(--shadow);text-align:left;cursor:pointer}
+.demo .nl{font-size:17px;font-weight:700}
+.demo .en{font-size:14px;color:var(--muted)}
+.title{font-weight:800;font-size:clamp(46px,7.4vw,84px);line-height:.92;letter-spacing:-.03em;margin:10px 0 18px}
+.title span{color:var(--delft);display:inline-block;position:relative}
+.title span::after{content:"";position:absolute;left:2%;right:2%;bottom:-.04em;height:.11em;background:var(--oranje-fill);border-radius:2px}
+.lede{font-size:18.5px;max-width:56ch}
+.lede-en{font-size:15px;color:var(--muted);max-width:60ch;margin-top:6px}
+.startform{margin-top:24px;display:flex;flex-direction:column;gap:16px;max-width:560px}
+.startform label.big{font-weight:700;font-size:15px;display:block;margin-bottom:6px}
+.txt{width:100%;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;min-height:46px}
+.txt:focus{border-color:var(--delft);outline:none;box-shadow:0 0 0 3px var(--delft-soft)}
+.levels{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.levels legend{font-weight:700;font-size:15px;margin-bottom:6px;padding:0}
+.lvcard{position:relative;display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px 10px 44px;cursor:pointer}
+.lvcard input{position:absolute;left:14px;top:13px;width:18px;height:18px;accent-color:var(--delft)}
+.lvcard b{font-size:15.5px}
+.lvcard span{font-size:13.5px;color:var(--muted)}
+.lvcard:has(input:checked){border-color:var(--delft);background:var(--delft-soft)}
+.lvcard em{font-style:normal;font-family:var(--f-display);font-weight:800;color:var(--delft);font-size:13px;position:absolute;right:12px;top:10px}
+.err{color:var(--bad);font-size:14px;font-weight:700}
+.how{list-style:none;padding:0;margin:22px 0 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:620px}
+.how li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted)}
+.how li .ic{color:var(--delft);margin-top:2px}
+.how b{display:block;color:var(--ink);font-size:14.5px}
+.welcome{margin-top:22px;display:flex;flex-direction:column;gap:12px;max-width:560px}
+.welcome .row{display:flex;gap:10px;flex-wrap:wrap}
+.welcome .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.welcome h2{font-size:26px}
+@media (max-width:860px){
+  .start{grid-template-columns:1fr;gap:34px;padding-block:8px 24px}
+  .start-art{max-width:300px}
+  .demo{right:-10px;bottom:-26px;max-width:230px}
+  .how{grid-template-columns:1fr}
+}
+@media (max-width:420px){.levels{grid-template-columns:1fr}}
+
+/* Game */
+.game{display:grid;grid-template-columns:minmax(270px,350px) minmax(0,1fr);gap:16px;height:100%}
+.scene{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-bottom:4px}
+.scene-info{display:flex;flex-direction:column;gap:10px;min-width:0}
+.plate{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.plate h2{font-size:26px;letter-spacing:-.01em}
+.plate p{font-size:14px;color:var(--muted);font-style:italic;text-align:right}
+.klikmeter{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;font-size:14px}
+.klikmeter .ic{width:18px;height:18px;color:var(--heart)}
+.klikmeter b{font-variant-numeric:tabular-nums}
+.klikmeter span{color:var(--muted)}
+.objectives{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 14px 10px}
+.objectives summary{cursor:pointer;font-family:var(--f-display);font-weight:800;font-size:17px;padding:8px 0;display:flex;justify-content:space-between;align-items:center;list-style:none}
+.objectives summary::-webkit-details-marker{display:none}
+.objectives summary span{font-family:var(--f-body);font-size:14px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.objectives ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.objectives li{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start}
+.objectives li .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;margin-top:1px;color:transparent}
+.objectives li.done .box{background:var(--good);border-color:var(--good);color:var(--surface)}
+.objectives li.done .box .ic{width:16px;height:16px}
+.objectives li b{font-size:15px;display:block;line-height:1.3}
+.objectives li span{font-size:13px;color:var(--muted)}
+.objectives li.done b{color:var(--good)}
+.objectives .free-note{font-size:14px;color:var(--muted);padding:2px 0 4px}
+
+.chat{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;position:relative}
+.chat-head{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--surface)}
+.chat-head .t{flex:1;min-width:0}
+.chat-head .t span{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--delft);font-weight:700}
+.chat-head .t h3{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-head .btn{min-height:38px}
+.log{flex:1;min-height:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:16px;overscroll-behavior:contain}
+.log .loading{color:var(--muted);text-align:center;margin:auto}
+.msg{display:flex;flex-direction:column;max-width:min(580px,90%);min-width:0}
+.msg.daan{align-self:flex-start}
+.msg.me{align-self:flex-end;align-items:flex-end}
+.bubble{padding:11px 14px 10px;border-radius:16px;min-width:0;overflow-wrap:anywhere}
+.daan .bubble{background:var(--delft-soft);border-top-left-radius:4px}
+.me .bubble{background:var(--delft);color:var(--delft-ink);border-top-right-radius:4px;font-size:16.5px}
+.me .bubble .sp{display:inline-flex;align-items:center;gap:4px;font-size:12px;opacity:.85;margin-top:4px}
+.me .bubble .sp .ic{width:14px;height:14px}
+.who{font-size:12px;font-weight:700;color:var(--delft);letter-spacing:.06em;text-transform:uppercase;margin:0 0 3px 4px}
+.nl{font-size:17.5px;line-height:1.45}
+.btools{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
+.say{border:0;background:var(--surface);color:var(--delft);width:30px;height:30px;border-radius:99px;display:grid;place-items:center;flex:none}
+.say .ic{width:17px;height:17px}
+.tr{background:none;border:0;padding:4px 0 0;text-align:left;font-size:14.5px;color:var(--muted);line-height:1.4;transition:filter .25s}
+.tr.veiled{filter:blur(5px);user-select:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:13.5px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;text-align:left}
+.chip span{color:var(--muted)}
+.fb{margin-top:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14.5px;width:100%;max-width:540px;display:flex;flex-direction:column;gap:6px;text-align:left}
+.fb.pending{color:var(--muted);font-style:italic}
+.fb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.score{font-weight:800;font-family:var(--f-display);font-size:15px;padding:2px 9px;border-radius:99px;font-variant-numeric:tabular-nums}
+.s-good{background:var(--good-bg);color:var(--good)}
+.s-warn{background:var(--warn-bg);color:var(--warn)}
+.s-bad{background:var(--bad-bg);color:var(--bad)}
+.xp{color:var(--oranje);font-weight:800;font-variant-numeric:tabular-nums}
+.tag{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;background:var(--surface)}
+.fix{line-height:1.5}
+.fix .lab{font-weight:700;color:var(--muted);margin-right:4px}
+.fix ins{text-decoration:none;background:var(--good-bg);color:var(--good);border-radius:4px;padding:0 3px;font-weight:700}
+.fix del{color:var(--bad);opacity:.85}
+.perfect{color:var(--good);font-weight:700}
+.fb details summary{cursor:pointer;color:var(--delft);font-weight:700;font-size:14px}
+.fb ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.fb .why{color:var(--muted)}
+.fb .tip{color:var(--ink)}
+.typing{align-self:flex-start;background:var(--delft-soft);border-radius:16px 16px 16px 4px;padding:12px 16px;display:flex;gap:5px;align-items:center}
+.typing i{width:7px;height:7px;border-radius:99px;background:var(--delft);opacity:.4;animation:dot 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+.typing span{font-size:13.5px;color:var(--muted);margin-left:6px}
+@keyframes dot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.sys{align-self:stretch;text-align:center;border:2px solid var(--oranje-fill);background:var(--oranje-soft);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.sys .stars{display:flex;gap:4px;color:var(--oranje-fill)}
+.sys .stars .ic{width:28px;height:28px}
+.sys .stars .off{color:var(--line)}
+.sys h4{font-size:22px}
+.sys .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.sys .teaser{font-style:italic;max-width:48ch}
+.sys .teaser-en{font-size:14px;color:var(--muted);max-width:52ch}
+
+.banner{margin:0 10px 8px;padding:10px 12px;border-radius:12px;background:var(--warn-bg);color:var(--ink);border:1px solid var(--warn);font-size:14.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner p{flex:1;min-width:200px}
+.hintpop{margin:0 10px 8px;padding:12px 14px;border-radius:12px;background:var(--oranje-soft);border:1.5px solid var(--oranje-fill);font-size:15px;display:flex;flex-direction:column;gap:6px}
+.hintpop .nl{font-size:16.5px;font-weight:700}
+.hintpop .en{color:var(--muted);font-size:14px}
+.hintpop .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hintpop .note{font-size:13px}
+.composer{display:flex;gap:8px;align-items:flex-end;padding:10px;border-top:1px solid var(--line);background:var(--surface)}
+.field{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.field textarea{width:100%;resize:none;border:1.5px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:16.5px;line-height:1.4;min-height:46px;max-height:140px}
+.field textarea:focus{outline:none;border-color:var(--delft);box-shadow:0 0 0 3px var(--delft-soft)}
+.partial{font-size:13.5px;color:var(--muted);font-style:italic;min-height:0;padding-left:4px}
+.partial:empty{display:none}
+.mic.listening{background:var(--bad);color:#FFFFFF;border-color:var(--bad);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(179,38,30,.45)}50%{box-shadow:0 0 0 7px rgba(179,38,30,0)}}
+.send{min-height:44px;padding:0 16px}
+.hint-on{background:var(--oranje-soft);color:var(--oranje);border-color:var(--oranje-fill)}
+
+@media (max-width:860px){
+  .game{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:10px}
+  .scene{flex-direction:row;flex-wrap:wrap;overflow:visible;gap:10px;padding:0}
+  .scene .tileframe{width:124px;flex:none;padding:6px}
+  .scene .orn{display:none}
+  .scene-info{flex:1;justify-content:center}
+  .plate{flex-direction:column;align-items:flex-start;gap:0}
+  .plate h2{font-size:22px}
+  .plate p{text-align:left}
+  .objectives{flex-basis:100%;padding:0 12px 6px}
+  .objectives summary{font-size:15.5px;padding:8px 0}
+  .log{padding:12px;gap:12px}
+  .msg{max-width:94%}
+  .nl{font-size:17px}
+}
+@media (max-width:860px) and (max-height:620px){
+  body.mode-game,body.mode-game .app{height:auto}
+  .chat{min-height:470px}
+}
+
+/* Map */
+.map{display:flex;flex-direction:column;gap:22px;padding-bottom:28px}
+.map-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px 24px;flex-wrap:wrap}
+.map-head h1{font-size:clamp(30px,4.2vw,44px);letter-spacing:-.02em;margin-top:6px}
+.map-head p.sub{color:var(--muted);margin-top:6px;max-width:60ch}
+.summary{display:grid;grid-template-columns:repeat(3,minmax(96px,1fr));gap:8px}
+.sumtile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.sumtile b{display:block;font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums;line-height:1.15}
+.sumtile span{font-size:12.5px;color:var(--muted)}
+.chapters{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.ch-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.ch-art{aspect-ratio:320/150;border-bottom:2px solid var(--delft);line-height:0;position:relative}
+.ch-art svg{width:100%;height:100%;display:block}
+.ch-card.locked .ch-art svg{filter:grayscale(.9);opacity:.55}
+.ch-n{position:absolute;left:10px;top:10px;width:34px;height:34px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:17px;line-height:1;background:var(--surface);color:var(--delft);border:2px solid var(--delft);border-radius:6px}
+.ch-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ch-body h3{font-size:19px}
+.ch-body .en{font-size:14px;color:var(--muted)}
+.ch-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);margin-top:auto;padding-top:6px}
+.lvl-tag{font-weight:700;color:var(--delft);background:var(--delft-soft);border-radius:6px;padding:1px 7px;font-size:12.5px}
+.stars-sm{display:flex;gap:1px;color:var(--oranje-fill)}
+.stars-sm .ic{width:16px;height:16px}
+.stars-sm .off{color:var(--line)}
+.ch-body .btn{margin-top:8px;width:100%}
+.ch-lock{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);margin-top:8px;min-height:38px}
+.ch-lock .ic{width:17px;height:17px}
+.ch-card.free{border:2px solid var(--delft)}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.badge{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.badge .bic{width:38px;height:38px;flex:none;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);color:var(--muted);border:1.5px dashed var(--line)}
+.badge.on .bic{background:var(--oranje-soft);color:var(--oranje);border:1.5px solid var(--oranje-fill)}
+.badge b{display:block;font-size:14.5px}
+.badge span{font-size:12.5px;color:var(--muted);line-height:1.3;display:block}
+.sec-title{font-size:22px}
+
+/* Notebook */
+.book{display:flex;flex-direction:column;gap:16px;padding-bottom:28px}
+.book-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.book-head h1{font-size:clamp(30px,4.2vw,44px);letter-spacing:-.02em}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;flex-wrap:wrap}
+.tabs button{border:0;background:none;border-radius:9px;padding:8px 12px;font-weight:700;font-size:14.5px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--delft);color:var(--delft-ink)}
+.wordlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.word{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;min-width:0}
+.word .say{background:var(--surface-2)}
+.word div{min-width:0}
+.word b{display:block;overflow-wrap:anywhere}
+.word span{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.fixlist{display:flex;flex-direction:column;gap:8px;max-width:760px}
+.fixitem{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.fixitem del{color:var(--bad)}
+.fixitem ins{text-decoration:none;color:var(--good);font-weight:700}
+.fixitem p{font-size:13.5px;color:var(--muted);margin-top:2px}
+.empty{background:var(--surface);border:1.5px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);max-width:560px}
+.empty b{color:var(--ink);display:block;font-size:17px;margin-bottom:4px}
+.drill{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:6px}
+.card{width:min(440px,100%);min-height:220px;background:var(--surface);border:2px solid var(--delft);border-radius:10px;padding:26px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;position:relative;box-shadow:var(--shadow)}
+.card .front{font-family:var(--f-display);font-size:32px;font-weight:800;overflow-wrap:anywhere}
+.card .back{font-size:19px;color:var(--muted)}
+.drill .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.search{max-width:320px}
+
+/* Overlays */
+.overlay{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:50;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--surface);color:var(--ink);border-radius:18px;max-width:480px;width:100%;max-height:100%;overflow:auto;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center}
+.sheet-head h2{font-size:24px}
+.set-group{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.set-group h3{font-size:16px}
+.set-group label{font-size:15px}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer}
+.switch input{width:20px;height:20px;accent-color:var(--delft)}
+.set-group select,.set-group input[type="text"]{border:1.5px solid var(--line);background:var(--surface-2);border-radius:10px;padding:8px 10px;min-height:42px;width:100%}
+.set-group input[type="range"]{width:100%;accent-color:var(--delft)}
+.seg{border:0;padding:0;margin:0;display:flex;gap:6px;flex-wrap:wrap}
+.seg legend{font-size:15px;margin-bottom:6px;padding:0}
+.seg label{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer}
+.seg label:has(input:checked){border-color:var(--delft);background:var(--delft-soft)}
+.seg input{accent-color:var(--delft)}
+.levelup{align-items:center;text-align:center;position:relative;overflow:hidden}
+.lu-badge{width:96px;height:96px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:40px;background:var(--delft);color:var(--delft-ink);border-radius:12px;box-shadow:inset 0 0 0 5px var(--delft),inset 0 0 0 7px var(--delft-ink),0 0 0 6px var(--oranje-soft)}
+.levelup h2{font-size:30px}
+.lu-name{font-weight:700;color:var(--oranje)}
+.lu-quote{font-style:italic;max-width:36ch}
+.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:conf 2.4s ease-in forwards}
+@keyframes conf{to{transform:translateY(520px) rotate(540deg);opacity:0}}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 86px);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:60;pointer-events:none;width:min(440px,calc(100% - 32px))}
+.toast{background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:99px;font-weight:700;font-size:14.5px;box-shadow:var(--shadow);animation:tin .3s ease-out;text-align:center}
+.toast.reward{background:var(--oranje-fill);color:var(--oranje-ink)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .daan .flake,.daan .spark{display:none}
+}
+</style>
+
+<div class="app" id="app">
+  <header class="hud" id="hud" hidden>
+    <button class="brand" id="hudHome" type="button">Praat met Daan</button>
+    <div class="lvl" title="Je spelniveau">
+      <div class="lvl-code" id="hLvl">A0</div>
+      <div class="lvl-meta">
+        <div class="lvl-row"><b id="hLvlName">Nieuwkomer</b><span id="hXp">0 / 300 XP</span></div>
+        <div class="bar" role="progressbar" aria-label="XP tot het volgende niveau" aria-valuemin="0" aria-valuemax="100" id="hXpWrap"><i id="hXpBar"></i></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat combo" title="Combo: berichten op rij met een 7 of hoger"><span id="icCombo"></span><span id="hCombo">×1.0</span><small>combo</small></div>
+      <div class="stat days" title="Dagen op rij geoefend"><span id="icDays"></span><span id="hDays">0</span><small>dagen</small></div>
+      <div class="stat goal" title="Dagdoel: 10 berichten">
+        <svg class="ring" viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15"/><circle class="arc" id="hGoalArc" cx="18" cy="18" r="15" stroke-dasharray="0 94.25" transform="rotate(-90 18 18)"/></svg>
+        <span id="hGoal">0/10</span><small>vandaag</small>
+      </div>
+      <div class="stat klik" title="Klik met Daan"><span id="icKlik"></span><span id="hKlik">20</span><small>klik</small></div>
+    </div>
+    <nav class="hud-nav" aria-label="Menu">
+      <button class="navbtn" id="nMap" type="button"><span id="icMap"></span><span>Verhaal</span></button>
+      <button class="navbtn" id="nBook" type="button"><span id="icBook"></span><span>Schrift</span></button>
+      <button class="navbtn" id="nSet" type="button" aria-label="Instellingen"><span id="icGear"></span></button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- START -->
+    <section class="view start" id="vStart">
+      <div class="start-art">
+        <div class="tileframe"><i class="orn tl"></i><i class="orn tr"></i><i class="orn bl"></i><i class="orn br"></i><div class="portrait" id="portraitStart"></div></div>
+        <button class="demo" id="demoBubble" type="button" aria-label="Laat Daan zijn eerste zin zeggen">
+          <p class="nl">Hoi! Ik ben Daan. Hoe heet jij?</p>
+          <p class="en">Hi! I'm Daan. What's your name?</p>
+        </button>
+      </div>
+      <div class="start-copy">
+        <p class="eyebrow">Een Nederlands rollenspel in Amsterdam</p>
+        <h1 class="title">Praat met <span>Daan</span></h1>
+        <p class="lede">Daan is meubelmaker met een werkplaats aan de Bloemgracht. Hij praat alleen Nederlands met je. Acht hoofdstukken, punten voor elke zin, en hoe beter je Nederlands wordt, hoe verder het verhaal komt.</p>
+        <p class="lede-en">Speak or type in Dutch. Daan answers in character, corrects every sentence, and you earn XP and "klik" (rapport) as you go. He talks simpler or faster to match your level.</p>
+
+        <form class="startform" id="startNew" novalidate>
+          <div>
+            <label class="big" for="nameIn">Hoe heet je? <span class="note">(What's your name?)</span></label>
+            <input class="txt" id="nameIn" type="text" maxlength="40" autocomplete="given-name" placeholder="Je voornaam">
+          </div>
+          <fieldset class="levels">
+            <legend>Hoeveel Nederlands spreek je al?</legend>
+            <label class="lvcard"><input type="radio" name="startLevel" value="A0" checked><b>Ik begin bij nul</b><span>Never studied Dutch</span><em>A0</em></label>
+            <label class="lvcard"><input type="radio" name="startLevel" value="A1"><b>Een beetje</b><span>I know basic phrases</span><em>A1</em></label>
+            <label class="lvcard"><input type="radio" name="startLevel" value="A2"><b>Basis</b><span>I manage simple chats</span><em>A2</em></label>
+            <label class="lvcard"><input type="radio" name="startLevel" value="B1"><b>Redelijk goed</b><span>I talk, with mistakes</span><em>B1</em></label>
+          </fieldset>
+          <p class="err" id="startErr" hidden></p>
+          <div><button class="btn" id="btnStart" type="submit" disabled>Even laden…</button></div>
+        </form>
+
+        <div class="welcome" id="startBack" hidden>
+          <div class="card">
+            <h2 id="wbTitle">Welkom terug!</h2>
+            <p class="note" id="wbLine"></p>
+          </div>
+          <div class="row">
+            <button class="btn" id="btnContinue" type="button">Verder spelen</button>
+            <button class="btn ghost" id="btnToMap" type="button">Naar het verhaal</button>
+            <button class="linkbtn" id="btnNewGame" type="button">Nieuw spel beginnen</button>
+          </div>
+        </div>
+
+        <ul class="how">
+          <li><span id="icHow1"></span><div><b>Spreek of typ</b>Use the mic to practise speaking, or type.</div></li>
+          <li><span id="icHow2"></span><div><b>Daan verbetert je</b>Every line gets a score and a corrected version.</div></li>
+          <li><span id="icHow3"></span><div><b>Verdien XP en klik</b>Reach objectives to unlock the next chapter.</div></li>
+        </ul>
+        <p class="note" id="loadNote" style="margin-top:14px">Voortgang laden…</p>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="view map" id="vMap" hidden>
+      <div class="map-head">
+        <div>
+          <p class="eyebrow">Jouw verhaal</p>
+          <h1>Amsterdam, hoofdstuk voor hoofdstuk</h1>
+          <p class="sub">Elk hoofdstuk heeft vier doelen. Haal ze in het Nederlands om het volgende hoofdstuk te openen. Vrij kletsen kan altijd.</p>
+        </div>
+        <div class="summary" id="mapSummary"></div>
+      </div>
+      <div class="chapters" id="chapters"></div>
+      <h2 class="sec-title">Badges</h2>
+      <div class="badges" id="badges"></div>
+    </section>
+
+    <!-- GAME -->
+    <section class="view game" id="vGame" hidden>
+      <aside class="scene" aria-label="Scène">
+        <div class="tileframe"><i class="orn tl"></i><i class="orn tr"></i><i class="orn bl"></i><i class="orn br"></i><div class="portrait" id="portrait"></div></div>
+        <div class="scene-info">
+          <div class="plate"><h2>Daan</h2><p id="roleLine">meubelmaker · Bloemgracht</p></div>
+          <div class="klikmeter" title="Klik: hoe goed het klikt tussen jou en Daan">
+            <span id="icKlik2"></span>
+            <div class="bar heart" role="progressbar" aria-label="Klik met Daan" aria-valuemin="0" aria-valuemax="100" id="klikWrap"><i id="klikBar"></i></div>
+            <span><b id="klikNum">20</b> · <span id="klikWord">Kennis</span></span>
+          </div>
+        </div>
+        <details class="objectives" id="objBox" open>
+          <summary>Doelen <span id="objCount">0/4</span></summary>
+          <ul id="objList"></ul>
+        </details>
+      </aside>
+
+      <div class="chat">
+        <div class="chat-head">
+          <button class="icon-btn" id="btnBack" type="button" aria-label="Terug naar het verhaal"></button>
+          <div class="t"><span id="chNum">Hoofdstuk 1</span><h3 id="chTitle">Koffie aan de gracht</h3></div>
+          <button class="btn ghost small" id="btnReplay" type="button">Opnieuw</button>
+        </div>
+        <div class="log" id="log" aria-live="polite"></div>
+        <div class="banner" id="banner" hidden></div>
+        <div class="hintpop" id="hintPop" hidden></div>
+        <form class="composer" id="composer">
+          <button type="button" class="icon-btn" id="btnHint" aria-label="Hint: wat kan ik zeggen?" title="Hint (halve XP)"></button>
+          <div class="field">
+            <label class="sr" for="inp">Jouw bericht aan Daan</label>
+            <textarea id="inp" rows="1" placeholder="Typ of spreek in het Nederlands…" autocomplete="off" spellcheck="false" lang="nl"></textarea>
+            <p class="partial" id="partial"></p>
+          </div>
+          <button type="button" class="icon-btn mic" id="btnMic" aria-label="Spreek in het Nederlands" title="Spreek (+5 XP)" hidden></button>
+          <button type="submit" class="btn send" id="btnSend">Stuur</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- NOTEBOOK -->
+    <section class="view book" id="vBook" hidden>
+      <div class="book-head">
+        <div><p class="eyebrow">Alles wat je bij Daan hebt geleerd</p><h1>Mijn schrift</h1></div>
+        <div class="tabs" role="tablist" aria-label="Schrift">
+          <button role="tab" id="tWords" aria-selected="true" type="button">Woorden</button>
+          <button role="tab" id="tFixes" aria-selected="false" type="button">Verbeteringen</button>
+          <button role="tab" id="tDrill" aria-selected="false" type="button">Oefenen</button>
+        </div>
+      </div>
+      <div id="pWords" role="tabpanel" aria-labelledby="tWords">
+        <input class="txt search" id="wordSearch" type="search" placeholder="Zoek een woord…" aria-label="Zoek een woord" style="margin-bottom:12px">
+        <div class="wordlist" id="wordList"></div>
+      </div>
+      <div id="pFixes" role="tabpanel" aria-labelledby="tFixes" hidden><div class="fixlist" id="fixList"></div></div>
+      <div id="pDrill" role="tabpanel" aria-labelledby="tDrill" hidden><div class="drill" id="drill"></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="ovSet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="sheet-head"><h2 id="setTitle">Instellingen</h2><button class="icon-btn" id="setClose" type="button" aria-label="Sluiten"></button></div>
+    <section class="set-group">
+      <h3>Stem van Daan</h3>
+      <label class="switch"><input type="checkbox" id="setVoice"><span>Daan spreekt hardop</span></label>
+      <label for="setVoiceSel">Stem</label>
+      <select id="setVoiceSel"></select>
+      <p class="note" id="voiceNote"></p>
+      <label for="setRate">Spreeksnelheid: <output id="rateOut">0.95×</output></label>
+      <input type="range" id="setRate" min="0.6" max="1.2" step="0.05">
+      <div><button class="btn ghost small" id="setTest" type="button">Test de stem</button></div>
+    </section>
+    <section class="set-group">
+      <h3>Leren</h3>
+      <label class="switch"><input type="checkbox" id="setTr"><span>Vertalingen altijd tonen</span></label>
+      <fieldset class="seg">
+        <legend>Coach</legend>
+        <label><input type="radio" name="depth" value="quick" id="dQuick">Snel</label>
+        <label><input type="radio" name="depth" value="deep" id="dDeep">Grondig</label>
+      </fieldset>
+      <p class="note">Snel: Daan antwoordt meteen. Grondig: preciezere feedback, maar hij denkt langer na.</p>
+      <label for="setName">Je naam</label>
+      <input id="setName" type="text" maxlength="40">
+    </section>
+    <section class="set-group">
+      <h3>Voortgang</h3>
+      <p class="note" id="saveNote"></p>
+      <div><button class="btn danger small" id="setReset" type="button">Alles wissen</button></div>
+    </section>
+  </div>
+</div>
+
+<!-- Level up -->
+<div class="overlay" id="ovLevel" hidden>
+  <div class="sheet levelup" role="dialog" aria-modal="true" aria-labelledby="luTitle">
+    <div class="confetti" id="confetti"></div>
+    <div class="lu-badge" id="luCode">A1</div>
+    <h2 id="luTitle">Nieuw niveau!</h2>
+    <p class="lu-name" id="luName">Beginner</p>
+    <p class="lu-quote" id="luQuote"></p>
+    <p class="note">Dit is je spelniveau, geen officieel CEFR-certificaat.</p>
+    <button class="btn reward" id="luOk" type="button">Verder praten</button>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse = matchMedia('(pointer: coarse)').matches;
+const use = n => (window.claude && typeof window.claude.use === 'function') ? Promise.resolve(window.claude.use(n)).catch(() => null) : Promise.resolve(null);
+
+/* ---------- Icons ---------- */
+const P = {
+  flame:'M12 2c1.2 4 5.5 5.6 5.5 10.8A5.5 5.5 0 0 1 6.5 13c0-2.2 1-3.8 2.2-5 .3 2 1.3 3 2.4 3.3C10.6 8.6 11 5.2 12 2Z',
+  heart:'M12 21.35 10.55 20C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z',
+  cal:'M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7Zm-2 7h14v11H5V9Zm2 2v3h3v-3H7Z',
+  map:'M15 5.2 9 3 3 5.1V21l6-2.2 6 2.2 6-2.1V3l-6 2.2ZM10 5.4l4 1.5v11.7l-4-1.5V5.4ZM5 6.5l3-1.1v11.7l-3 1.1V6.5Zm11 .4 3-1.1v11.7l-3 1.1V6.9Z',
+  book:'M5 3.5A2.5 2.5 0 0 1 7.5 1H20v17H7.5a1 1 0 1 0 0 2H20v2H7.5A2.5 2.5 0 0 1 5 19.5v-16ZM9 5v2h7V5H9Z',
+  gear:'M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1L11 21h4l.4-2.9a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5-2.2-1.6ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z',
+  mic:'M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z',
+  speaker:'M3 10v4h4l5 5V5L7 10H3Zm13.5 2A4.5 4.5 0 0 0 14 8v8a4.47 4.47 0 0 0 2.5-4ZM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23Z',
+  bulb:'M9 21h6v-1.5H9V21Zm3-19a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2Z',
+  star:'M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z',
+  lock:'M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2Zm-7-2a2 2 0 0 1 4 0v2h-4V7Z',
+  check:'M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z',
+  back:'M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2Z',
+  close:'M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4Z',
+  medal:'M7 2h10l-2.5 6.1A6.5 6.5 0 1 1 9.5 8.1L7 2Zm5 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 1.6 1 2.1 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3 1-2.1Z',
+};
+const icon = (n, cls) => `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="${P[n]}"/></svg>`;
+
+/* ---------- Game data ---------- */
+const LEVELS = [
+  {code:'A0', name:'Nieuwkomer', min:0, guide:'Absolute beginner. Use only very common words, present tense, very short sentences (max about 8 words). Speak like to someone who just arrived. If they look lost, you may add the English meaning of ONE key word in brackets.'},
+  {code:'A1', name:'Beginner', min:300, guide:'Beginner. Short, simple sentences in the present tense with everyday words. Be very clear. No idioms.'},
+  {code:'A2', name:'Op weg', min:900, guide:'Elementary. Simple sentences; present and perfect tense (heb/ben + voltooid deelwoord); common separable verbs. Avoid complex clauses.'},
+  {code:'B1', name:'Zelfstandig', min:2000, guide:'Intermediate. Natural everyday Dutch with subordinate clauses (omdat, dat, als, toen) and some common expressions.'},
+  {code:'B2', name:'Vloeiend', min:3800, guide:'Upper-intermediate. Fully natural, idiomatic Dutch at normal speed. Challenge them with nuance, follow-up questions and opinions.'},
+  {code:'C1', name:'Echte Amsterdammer', min:6000, guide:'Advanced. Talk as with a Dutch friend: humour, idioms, a bit of Amsterdam slang, fast pace.'},
+];
+const levelOf = xp => { let i = 0; LEVELS.forEach((l, k) => { if (xp >= l.min) i = k; }); return i; };
+const KLIK = k => k < 25 ? ['Kennis','an acquaintance'] : k < 50 ? ['Vriend','a friend'] : k < 75 ? ['Goede vriend','a close friend'] : ['Het klikt!','someone he clearly clicks with'];
+
+const THEMES = {
+  morning:{sky:['#BCD8F1','#FBE4D0'], sun:{x:262,y:70,r:20,c:'#FFE3A3'}, houses:['#7A4535','#3E5A73','#A3643F','#56684F'], win:'#DCE8F3', water:'#5C86A8', quay:'#3D3A3C'},
+  afternoon:{sky:['#F2C68C','#F7E8D0'], sun:{x:56,y:86,r:24,c:'#FFC46B'}, houses:['#6B3C2E','#2F4C63','#8E5A36','#4D5C46'], win:'#F6E1B8', water:'#6D8DA2', quay:'#3A3434'},
+  market:{sky:['#86BFEE','#DCEEFB'], sun:{x:254,y:56,r:18,c:'#FFF1B8'}, houses:['#8A4B3B','#4A6680','#B57647','#68795E'], win:'#E6F0F8', water:'#4E7EA6', quay:'#3D3A3C', market:true},
+  winter:{sky:['#9DAEC2','#DDE4EB'], sun:{x:84,y:86,r:15,c:'#F3F6F9'}, houses:['#5E4440','#3B4B5C','#6E5446','#4C5650'], win:'#C9D3DD', lit:true, water:'#7D93A8', quay:'#3A3A40', snow:true, frame:{wall:'#D8D1C4', mull:'#F3EEE4'}},
+  borrel:{sky:['#8E9CC6','#EDB27C'], sun:{x:250,y:100,r:24,c:'#FFB566'}, houses:['#4A3230','#2A3A4E','#5E4036','#3A4438'], win:'#6E6A7E', lit:true, water:'#4B6A8E', quay:'#2B2A2E'},
+  office:{sky:['#B5CBE2','#E8F0F7'], houses:['#6F4A3E','#46607A','#9C6B48','#5F6E5A'], win:'#E3ECF5', water:'#6A8FB0', quay:'#3D3A3C', frame:{wall:'#E4E9F0', mull:'#FFFFFF'}},
+  night:{sky:['#141C38','#3A3F6B'], moon:{x:236,y:72,r:12,c:'#F4EFD8'}, stars:true, houses:['#2B2230','#1F2A3A','#33283A','#24302C'], win:'#3A4058', lit:true, water:'#26375A', quay:'#18161C', frame:{wall:'#5A3F35', mull:'#3E2A22'}, lamp:true},
+  sunset:{sky:['#5B4A8A','#F59A6B'], sun:{x:266,y:118,r:28,c:'#FFC27A'}, houses:['#3B2440','#2E2348','#4A2C45','#33264A'], win:'#5A3B5E', lit:true, water:'#B86C86', quay:'#2A1B2C', sparkle:true},
+  workshop:{sky:['#CDE1F1','#F5E6D2'], sun:{x:250,y:76,r:16,c:'#FFE6A8'}, houses:['#7A4535','#3E5A73','#A3643F','#56684F'], win:'#DCE8F3', water:'#5C86A8', quay:'#3D3A3C', frame:{wall:'#8C6B4F', mull:'#6B4F39'}},
+};
+
+const CH = [
+  {id:'c1', n:1, title:'Koffie aan de gracht', en:'Coffee by the canal', rec:'A0–A1', recIdx:0, theme:'morning', role:null,
+   setting:'A sunny weekday morning at a small café on the Bloemgracht, a quiet canal in the Jordaan. The player has just sat down. Daan sits at the next table with a coffee, a bit of sawdust on his sleeve: his workshop is around the corner. He starts a friendly chat. When it is time to order, Daan waves the waiter over and asks the player what they want, or briefly voices the waiter himself.',
+   obj:[{id:'o1', nl:'Stel jezelf voor', en:'Introduce yourself (your name)'},{id:'o2', nl:'Vertel waar je vandaan komt', en:'Say where you are from'},{id:'o3', nl:'Bestel iets te drinken', en:'Order something to drink'},{id:'o4', nl:'Vraag Daan iets over hemzelf', en:'Ask Daan a question about himself'}],
+   open:{easy:{nl:'Hoi! Goedemorgen. Ik ben Daan. Hoe heet jij?', en:"Hi! Good morning. I'm Daan. What's your name?", words:[{nl:'goedemorgen',en:'good morning'},{nl:'Hoe heet jij?',en:"What's your name?"}]},
+         std:{nl:'Goedemorgen! Sorry dat ik stoor, maar jij bent hier nieuw, toch? Ik ben Daan. Mijn werkplaats is hier om de hoek.', en:"Good morning! Sorry to bother you, but you're new here, right? I'm Daan. My workshop is just around the corner.", words:[{nl:'storen',en:'to disturb'},{nl:'de werkplaats',en:'workshop'},{nl:'om de hoek',en:'around the corner'}]}},
+   hint:{nl:'Hoi Daan, ik heet {naam}.', en:'Hi Daan, my name is {naam}.'},
+   teaser:{nl:'Daan schrijft zijn nummer op een servetje. Een paar dagen later, op een brug in de Jordaan, krijg je een lekke band…', en:'Daan writes his number on a napkin. A few days later, on a bridge in the Jordaan, you get a flat tyre…'}},
+  {id:'c2', n:2, title:'Een lekke band', en:'A flat tyre', rec:'A1', recIdx:1, theme:'afternoon', role:null,
+   setting:"A few days later, late afternoon. The player's bike has a flat tyre (lekke band) on a canal bridge. Daan cycles past, recognises them from the café, and stops to help. He carries a small repair kit, can fix it in about fifteen minutes, and does not want money.",
+   obj:[{id:'o1', nl:'Leg uit wat er mis is met je fiets', en:"Explain what's wrong with your bike"},{id:'o2', nl:'Vraag of hij je kan helpen', en:'Ask if he can help you'},{id:'o3', nl:'Vraag hoe lang het duurt of wat het kost', en:'Ask how long it takes or what it costs'},{id:'o4', nl:'Bedank hem en stel iets leuks voor', en:'Thank him and suggest something nice in return'}],
+   open:{easy:{nl:'Hé, {naam}! Jij weer! Wat is er? Is je fiets kapot?', en:"Hey, {naam}! You again! What's up? Is your bike broken?", words:[{nl:'kapot',en:'broken'},{nl:'de fiets',en:'bike'}]},
+         std:{nl:'Hé, {naam}! Ik zag je al van ver met je fiets staan worstelen. Wat is er aan de hand?', en:"Hey, {naam}! I could see you wrestling with your bike from far away. What's going on?", words:[{nl:'worstelen',en:'to wrestle, struggle'},{nl:'Wat is er aan de hand?',en:"What's going on?"}]}},
+   hint:{nl:'Ja, mijn band is lek.', en:'Yes, my tyre is flat.'},
+   teaser:{nl:'Als bedankje ga je zaterdag met Daan naar de markt.', en:'To say thanks, you go to the market with Daan on Saturday.'}},
+  {id:'c3', n:3, title:'Op de markt', en:'At the market', rec:'A1–A2', recIdx:1, theme:'market', role:null,
+   setting:'Saturday at a busy outdoor street market. Daan is cooking for friends tonight and asked the player to help him shop, because he is hopeless at choosing vegetables. Stalls sell vegetables, fruit, cheese, fish and stroopwafels. Daan can briefly voice a market vendor when the player asks a price.',
+   obj:[{id:'o1', nl:'Zeg wat je graag eet', en:'Say what you like to eat'},{id:'o2', nl:'Vraag naar de prijs van iets', en:'Ask the price of something'},{id:'o3', nl:'Gebruik een hoeveelheid (een kilo, twee stuks, een ons)', en:'Use a quantity (a kilo, two pieces, 100 grams)'},{id:'o4', nl:'Stel een gerecht voor', en:'Suggest a dish to cook'}],
+   open:{easy:{nl:'Goedemiddag! Wat druk, hè? Ik kook vanavond. Wat eet jij graag?', en:'Good afternoon! So busy, huh? I am cooking tonight. What do you like to eat?', words:[{nl:'druk',en:'busy'},{nl:'koken',en:'to cook'}]},
+         std:{nl:'Fijn dat je mee wilde! Ik heb vanavond vrienden te eten en ik heb eerlijk gezegd geen idee wat ik moet maken. Wat eet jij eigenlijk graag?', en:'Great that you wanted to come! I have friends over for dinner tonight and honestly I have no idea what to make. What do you actually like to eat?', words:[{nl:'eerlijk gezegd',en:'honestly'},{nl:'eigenlijk',en:'actually'}]}},
+   hint:{nl:'Ik eet graag vis en groente.', en:'I like eating fish and vegetables.'},
+   teaser:{nl:'Het wordt winter. Thuis is het ijskoud: de verwarming doet het niet.', en:"Winter arrives. It's freezing at home: the heating isn't working."}},
+  {id:'c4', n:4, title:'De verwarming doet het niet', en:'The heating is broken', rec:'A2', recIdx:2, theme:'winter', role:'meneer Bakker (de huisbaas)',
+   setting:"A winter evening. The heating in the player's apartment is broken and the landlord is slow to act. Daan offered to help the player rehearse the phone call: he role-plays the landlord, 'meneer Bakker', who is busy, a bit grumpy and tries to postpone. The player should use formal 'u'. Bakker gives in to polite but firm requests and agrees a day and time for a repairman.",
+   obj:[{id:'o1', nl:'Beschrijf het probleem', en:'Describe the problem'},{id:'o2', nl:'Vraag beleefd om hulp (Kunt u… / Zou u…)', en:"Ask politely for help, using 'u'"},{id:'o3', nl:'Spreek een dag en tijd af', en:'Agree on a day and time'},{id:'o4', nl:'Blijf vriendelijk maar duidelijk', en:'Stay friendly but firm when he stalls'}],
+   open:{easy:{nl:'Oké, ik ben nu meneer Bakker, de huisbaas. Tring tring… Ja, met Bakker. Wie is dit?', en:'Okay, now I am Mr Bakker, the landlord. Ring ring… Yes, Bakker speaking. Who is this?', words:[{nl:'de huisbaas',en:'landlord'},{nl:'met Bakker',en:'Bakker speaking (on the phone)'}]},
+         std:{nl:'Goed, ik speel de huisbaas. Klaar? Tring tring… Ja, met Bakker. Ik heb het druk, dus zeg het maar: wat is er?', en:"Right, I'll play the landlord. Ready? Ring ring… Yes, Bakker speaking. I'm busy, so go ahead: what is it?", words:[{nl:'Ik heb het druk',en:"I'm busy"},{nl:'Zeg het maar',en:'Go ahead'}]}},
+   hint:{nl:'Goedenavond meneer Bakker, u spreekt met {naam}. Mijn verwarming doet het niet.', en:"Good evening Mr Bakker, this is {naam}. My heating isn't working."},
+   teaser:{nl:'De verwarming is gemaakt. Vrijdag vier je dat met een borrel.', en:'The heating is fixed. On Friday you celebrate with drinks.'}},
+  {id:'c5', n:5, title:'Vrijdagmiddagborrel', en:'Friday afternoon drinks', rec:'A2–B1', recIdx:2, theme:'borrel', role:null,
+   setting:"Friday afternoon drinks (vrijdagmiddagborrel) at a brown café near the player's work. Daan joins after his workday. Small talk about the week, work or study, opinions and weekend plans. Encourage the perfect tense (heb/ben + past participle) by asking what they did.",
+   obj:[{id:'o1', nl:'Vertel wat je deze week hebt gedaan (ik heb… / ik ben…)', en:'Say what you did this week (perfect tense)'},{id:'o2', nl:'Praat over je werk of studie', en:'Talk about your work or studies'},{id:'o3', nl:'Geef je mening (ik vind…)', en:'Give your opinion (ik vind…)'},{id:'o4', nl:'Maak een plan voor het weekend', en:'Make a plan for the weekend'}],
+   open:{easy:{nl:'Proost! Eindelijk vrijdag. Hoe was je week?', en:'Cheers! Finally Friday. How was your week?', words:[{nl:'proost',en:'cheers'},{nl:'eindelijk',en:'finally'}]},
+         std:{nl:'Proost, op het weekend! Zeg, ik heb je de hele week niet gezien. Wat heb je allemaal gedaan?', en:"Cheers, to the weekend! Hey, I haven't seen you all week. What have you been up to?", words:[{nl:'de borrel',en:'drinks (after work)'},{nl:'allemaal',en:'all (of it)'}]}},
+   hint:{nl:'Proost! Ik heb veel gewerkt en ik ben naar de sportschool geweest.', en:'Cheers! I worked a lot and I went to the gym.'},
+   teaser:{nl:'Op de borrel vertel je over een sollicitatiegesprek. Daan wil je helpen oefenen.', en:'At the drinks you mention a job interview. Daan wants to help you practise.'}},
+  {id:'c6', n:6, title:'Het sollicitatiegesprek', en:'The job interview', rec:'B1', recIdx:3, theme:'office', role:'meneer De Groot (hoofd Finance)',
+   setting:"The day before a real job interview in Dutch for a finance role at a large international company in Amsterdam. Daan helps rehearse by playing the interviewer, 'meneer De Groot', head of Finance: formal, friendly, probing. He asks about background, experience (for example accounts payable, internal control, process improvement), strengths with concrete examples, and motivation. Use 'u'. Give the player room to talk and ask one follow-up at a time.",
+   obj:[{id:'o1', nl:'Stel jezelf professioneel voor', en:'Introduce yourself professionally'},{id:'o2', nl:'Beschrijf je ervaring (bijv. crediteuren, interne controle)', en:'Describe your experience'},{id:'o3', nl:'Noem een sterke eigenschap met een voorbeeld', en:'Name a strength with an example'},{id:'o4', nl:'Stel zelf een goede vraag', en:'Ask a good question yourself'}],
+   open:{easy:{nl:'Goedemiddag, welkom. Ik ben meneer De Groot. Vertelt u eens iets over uzelf?', en:'Good afternoon, welcome. I am Mr De Groot. Could you tell me something about yourself?', words:[{nl:'welkom',en:'welcome'},{nl:'uzelf',en:'yourself (formal)'}]},
+         std:{nl:'Goedemiddag, fijn dat u er bent. Ik ben meneer De Groot, hoofd Finance. Neemt u plaats. Vertelt u eerst eens iets over uzelf, en waarom deze functie u aanspreekt?', en:'Good afternoon, glad you could make it. I am Mr De Groot, head of Finance. Please take a seat. First tell me a little about yourself, and why this position appeals to you?', words:[{nl:'Neemt u plaats',en:'Please take a seat'},{nl:'de functie',en:'position, role'},{nl:'aanspreken',en:'to appeal to'}]}},
+   hint:{nl:'Goedemiddag. Ik ben {naam}. Ik studeer International Business met een focus op finance.', en:"Good afternoon. I'm {naam}. I study International Business with a focus on finance."},
+   teaser:{nl:'Het gesprek ging goed! Daan nodigt je uit om bij hem te komen eten.', en:'The interview went well! Daan invites you over for dinner.'}},
+  {id:'c7', n:7, title:'Huren of kopen?', en:'Rent or buy?', rec:'B1–B2', recIdx:3, theme:'night', role:null,
+   setting:"Dinner at Daan's apartment, now on the sofa with a glass of wine. A lively but friendly debate about the Amsterdam housing market: renting or buying, prices, canal-house dreams. Daan deliberately takes the opposite view to whatever the player says, to provoke arguments, and enjoys a good debate.",
+   obj:[{id:'o1', nl:'Geef je mening met een reden (omdat / want)', en:'Give your opinion with a reason'},{id:'o2', nl:'Ben het beleefd oneens met Daan', en:'Politely disagree with Daan'},{id:'o3', nl:'Gebruik een bijzin (hoewel, als, terwijl…)', en:'Use a subordinate clause'},{id:'o4', nl:'Beschrijf je droomhuis', en:'Describe your dream home'}],
+   open:{easy:{nl:'Lekker, hè, die pasta? Zeg, wil jij later een huis kopen of huren?', en:'Tasty pasta, right? Say, do you want to buy or rent a home later?', words:[{nl:'huren',en:'to rent'},{nl:'kopen',en:'to buy'}]},
+         std:{nl:'Zo, lekker op de bank. Mag ik je iets vragen? Iedereen klaagt over de woningmarkt, maar zou jij in Amsterdam huren of kopen? En waarom?', en:'There, comfy on the sofa. Can I ask you something? Everyone complains about the housing market, but would you rent or buy in Amsterdam? And why?', words:[{nl:'klagen',en:'to complain'},{nl:'de woningmarkt',en:'housing market'}]}},
+   hint:{nl:'Ik wil later kopen, omdat huren zo duur is.', en:'I want to buy later, because renting is so expensive.'},
+   teaser:{nl:"Een paar weken later stuurt Daan een berichtje: 'Zin in een boottochtje?'", en:"A few weeks later Daan texts you: 'Fancy a boat trip?'"}},
+  {id:'c8', n:8, title:'Zonsondergang op de gracht', en:'Sunset on the canal', rec:'B2', recIdx:4, theme:'sunset', role:null, needKlik:50,
+   setting:"A warm summer evening. Daan borrowed a friend's small boat and takes the player along the canals at sunset. The atmosphere is relaxed and a little romantic (keep it subtle, kind and respectful). A deeper conversation: dreams for the future, what 'home' means, feeling chosen and safe somewhere. Daan is open about his own dreams too: his own furniture label, and a canal house with a workshop on the ground floor.",
+   obj:[{id:'o1', nl:'Praat over je dromen (ik zou graag… / ik wil…)', en:'Talk about your dreams (conditional)'},{id:'o2', nl:"Vertel wat 'thuis' voor jou betekent", en:"Say what 'home' means to you"},{id:'o3', nl:'Maak een grapje of geef een compliment', en:'Make a joke or give a compliment'},{id:'o4', nl:'Vraag Daan naar zijn dromen', en:'Ask Daan about his dreams'}],
+   open:{easy:{nl:'Kijk, de zon gaat onder. Mooi, hè? Waar droom jij van?', en:'Look, the sun is setting. Beautiful, huh? What do you dream of?', words:[{nl:'de zon gaat onder',en:'the sun sets'},{nl:'dromen van',en:'to dream of'}]},
+         std:{nl:'Kijk hoe het licht op het water valt… Hier word ik altijd een beetje filosofisch van. Zeg eens eerlijk: waar zie jij jezelf over vijf jaar?', en:'Look how the light falls on the water… This always makes me a bit philosophical. Tell me honestly: where do you see yourself in five years?', words:[{nl:'filosofisch',en:'philosophical'},{nl:'over vijf jaar',en:'in five years'}]}},
+   hint:{nl:'Over vijf jaar zou ik graag een eigen huis aan de gracht hebben.', en:"In five years I'd love to have my own house on a canal."},
+   teaser:{nl:'Einde van het verhaal… maar Daan blijft. Klets vrij verder, of speel een hoofdstuk opnieuw voor drie sterren.', en:'The end of the story… but Daan stays. Keep chatting freely, or replay a chapter for three stars.'}},
+];
+const FREE = {id:'free', n:0, title:'Vrij kletsen', en:'Free talk', rec:'Elk niveau', theme:'workshop', role:null, obj:[],
+  setting:"Free conversation in Daan's workshop on the Bloemgracht (or wherever the conversation goes). No fixed objectives: follow the player's interests, ask about their life, share a bit of yours, and bring in a new topic or a small language challenge every few turns. Keep it fun and matched to their level.",
+  open:{easy:{nl:'Hoi {naam}! Gezellig dat je er bent. Hoe gaat het met je?', en:"Hi {naam}! Lovely that you're here. How are you?", words:[{nl:'gezellig',en:'cosy, nice, fun'}]},
+        std:{nl:'Hé {naam}, gezellig! Ik ben net klaar in de werkplaats. Waar wil je het vandaag over hebben?', en:"Hey {naam}, how nice! I've just finished in the workshop. What do you want to talk about today?", words:[{nl:'gezellig',en:'cosy, nice, fun'},{nl:'het hebben over',en:'to talk about'}]}},
+  hint:{nl:'Het gaat goed, dank je! En met jou?', en:"I'm doing well, thanks! And you?"}};
+const ALL = [...CH, FREE];
+const chById = id => ALL.find(c => c.id === id);
+
+const BADGES = [
+  {id:'first', name:'Eerste woorden', desc:'Je eerste bericht aan Daan', test:() => S.stats.msgs >= 1},
+  {id:'speaker', name:'Spreker', desc:'10 berichten ingesproken', test:() => S.stats.spoken >= 10},
+  {id:'flawless', name:'Foutloos', desc:'5× op rij een 9 of hoger', test:() => S.stats.bestPerfect >= 5},
+  {id:'collector', name:'Verzamelaar', desc:'50 woorden in je schrift', test:() => S.words.length >= 50},
+  {id:'chatter', name:'Kletskous', desc:'100 berichten gestuurd', test:() => S.stats.msgs >= 100},
+  {id:'klik', name:'Het klikt!', desc:'Klik van 75 of meer', test:() => S.klik >= 75},
+  {id:'streak3', name:'Doorzetter', desc:'3 dagen op rij geoefend', test:() => S.dayStreak >= 3},
+  {id:'story', name:'Hele verhaal', desc:'Alle 8 hoofdstukken voltooid', test:() => CH.every(c => S.chapters[c.id] && S.chapters[c.id].done)},
+];
+
+/* ---------- State ---------- */
+function freshState(name, startCode) {
+  const si = Math.max(0, LEVELS.findIndex(l => l.code === startCode));
+  const chapters = {};
+  CH.forEach(c => { chapters[c.id] = {unlocked: c.recIdx <= si && !c.needKlik, done:false, met:[], scores:[], stars:0, turns:0, cleared:false}; });
+  chapters.c1.unlocked = true;
+  return {v:1, name, startLevel: LEVELS[si].code, xp: LEVELS[si].min, klik:20, streak:0, bestStreak:0,
+    day:{date:'', count:0}, dayStreak:0,
+    stats:{msgs:0, spoken:0, perfectRun:0, bestPerfect:0, scoreSum:0, cards:0},
+    chapters, current:'c1', words:[], fixes:[], badges:{},
+    settings:{voice:true, voiceName:'', rate:.95, translate: si <= 1, depth:'quick'}, created: Date.now()};
+}
+function hydrate(p) {
+  const base = freshState(String(p.name || ''), p.startLevel || 'A0');
+  const defSettings = Object.assign({}, base.settings);
+  const s = Object.assign(base, p);
+  s.stats = Object.assign(freshState('', 'A0').stats, p.stats || {});
+  s.settings = Object.assign(defSettings, p.settings || {});
+  s.chapters = {};
+  CH.forEach(c => { s.chapters[c.id] = Object.assign({unlocked:false, done:false, met:[], scores:[], stars:0, turns:0, cleared:false}, (p.chapters || {})[c.id] || {}); });
+  s.chapters.c1.unlocked = true;
+  s.words = Array.isArray(p.words) ? p.words : [];
+  s.fixes = Array.isArray(p.fixes) ? p.fixes : [];
+  s.badges = p.badges || {};
+  s.day = p.day || {date:'', count:0};
+  return s;
+}
+let S = null;
+const CONVOS = {};
+const ui = {view:'start', chapter:null, busy:false, spoken:false, hintUsed:false, lastSug:null, micOff:false, drillWord:null, drillShown:false, tab:'words'};
+
+/* ---------- Storage: per-viewer private docs, with a local fallback ---------- */
+const lsOK = (() => { try { const k = '__pmd'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; } catch { return false; } })();
+const Store = {
+  mode:'none', db:null, uid:null, pend:{}, busy:{},
+  async init() {
+    const [db, user] = await Promise.all([use('db'), use('user')]);
+    let uid = null;
+    if (user && typeof user.id === 'function') { try { uid = await user.id(); } catch { uid = null; } }
+    if (db && uid) { this.db = db; this.uid = uid; this.mode = 'db'; }
+    else this.mode = lsOK ? 'local' : 'none';
+  },
+  ref(key) { return this.db.doc('data/users/' + this.uid + '/' + key); },
+  async load(key) {
+    if (this.mode === 'db') {
+      try {
+        const snap = await Promise.race([this.ref(key).get(), sleep(9000).then(() => { throw {code:'timeout'}; })]);
+        return snap.exists ? snap.data() : null;
+      } catch (e) {
+        this.mode = lsOK ? 'local' : 'none'; this.degraded = true;
+        return this.load(key);
+      }
+    }
+    if (this.mode === 'local') { try { const s = localStorage.getItem('pmd:' + key); return s ? JSON.parse(s) : null; } catch { return null; } }
+    return null;
+  },
+  save(key, obj) {
+    try { this.pend[key] = JSON.stringify(obj); } catch { return; }
+    if (!this.busy[key]) this.flush(key);
+  },
+  async flush(key) {
+    this.busy[key] = true;
+    while (this.pend[key] != null) {
+      const s = this.pend[key]; this.pend[key] = null;
+      await this.write(key, JSON.parse(s));
+    }
+    this.busy[key] = false;
+  },
+  async write(key, data) {
+    if (this.mode === 'db') {
+      try { await this.ref(key).set(data); return; }
+      catch (e) {
+        if (e && e.code === 'unavailable') { await sleep(500 + Math.random() * 900); try { await this.ref(key).set(data); return; } catch {} }
+        if (!this.warned) { this.warned = true; toast('Opslaan in je account lukte niet. Je voortgang staat nu op dit apparaat.'); }
+        if (lsOK) { try { localStorage.setItem('pmd:' + key, JSON.stringify(data)); } catch {} }
+        return;
+      }
+    }
+    if (this.mode === 'local') { try { localStorage.setItem('pmd:' + key, JSON.stringify(data)); } catch {} }
+  },
+  async remove(key) {
+    if (this.mode === 'db') { try { await this.ref(key).delete(); } catch {} }
+    if (lsOK) { try { localStorage.removeItem('pmd:' + key); } catch {} }
+  },
+};
+let saveT = null;
+function saveProgress(soon) {
+  if (!S) return;
+  clearTimeout(saveT);
+  if (soon) saveT = setTimeout(() => Store.save('progress', S), 700);
+  else Store.save('progress', S);
+}
+function saveConvo(id) { if (CONVOS[id]) Store.save('convo-' + id, {msgs: CONVOS[id]}); }
+async function loadConvo(id) {
+  if (CONVOS[id]) return CONVOS[id];
+  const d = await Store.load('convo-' + id);
+  if (!CONVOS[id]) CONVOS[id] = (d && Array.isArray(d.msgs)) ? d.msgs : [];
+  return CONVOS[id];
+}
+
+/* ---------- Scene art ---------- */
+const HOUSES = [{x:-8,w:46,h:160,g:'step'},{x:38,w:40,h:186,g:'neck'},{x:78,w:44,h:168,g:'bell'},{x:122,w:38,h:180,g:'point'},{x:160,w:44,h:172,g:'step'},{x:204,w:40,h:186,g:'bell'},{x:244,w:42,h:150,g:'neck'},{x:286,w:42,h:176,g:'point'}];
+const STARS = [[24,28,1.2],[64,16,.9],[108,38,1],[150,12,.8],[196,26,1.3],[282,40,.9],[304,14,1.1],[270,98,.8],[14,84,.8],[180,60,.7]];
+function gablePath(g, x, w, t, b) {
+  const X = f => (x + w * f).toFixed(1), R = x + w;
+  if (g === 'point') return `M${x} ${b} L${X(.5)} ${t} L${R} ${b} Z`;
+  if (g === 'step') { const s = (b - t) / 4; return `M${x} ${b} V${b-s} H${X(.14)} V${b-2*s} H${X(.28)} V${b-3*s} H${X(.4)} V${t} H${X(.6)} V${b-3*s} H${X(.72)} V${b-2*s} H${X(.86)} V${b-s} H${R} V${b} Z`; }
+  if (g === 'neck') return `M${x} ${b} C${x} ${b-10} ${X(.26)} ${b-8} ${X(.26)} ${b-18} V${t+6} Q${X(.5)} ${t-6} ${X(.74)} ${t+6} V${b-18} C${X(.74)} ${b-8} ${R} ${b-10} ${R} ${b} Z`;
+  return `M${x} ${b} C${x} ${b-16} ${X(.18)} ${b-14} ${X(.22)} ${b-22} C${X(.28)} ${t} ${X(.72)} ${t} ${X(.78)} ${b-22} C${X(.82)} ${b-14} ${R} ${b-16} ${R} ${b} Z`;
+}
+function houseSVG(h, t, i) {
+  const base = 292, gh = 32, top = base - h.h, b = top + gh, x = h.x, w = h.w;
+  const fill = t.houses[i % 4];
+  let s = `<path d="${gablePath(h.g, x, w, top, b)} M${x} ${b} H${x+w} V${base} H${x} Z" fill="${fill}"/>`;
+  s += `<path d="${gablePath(h.g, x, w, top, b)}" fill="none" stroke="#F6EFE2" stroke-opacity=".38" stroke-width="1.4"/>`;
+  s += `<rect x="${(x + w/2 - 5).toFixed(1)}" y="${top + 9}" width="10" height="2" fill="#1E1A18" opacity=".55"/>`;
+  s += `<rect x="${(x + w/2 - 3).toFixed(1)}" y="${(top + gh*.45).toFixed(1)}" width="6" height="9" rx="3" fill="${t.lit && i % 3 === 1 ? '#FFD27E' : t.win}"/>`;
+  const cols = w >= 44 ? 3 : 2, ww = 7, wh = 12, gap = (w - cols * ww) / (cols + 1);
+  for (let r = 0, y = b + 12; y + wh < base - 12; r++, y += 24) {
+    for (let c = 0; c < cols; c++) {
+      const wx = x + gap + c * (ww + gap);
+      const lit = t.lit && ((i * 5 + r * 3 + c * 7) % 4 === 0);
+      s += `<rect x="${wx.toFixed(1)}" y="${y}" width="${ww}" height="${wh}" rx="1.5" fill="${lit ? '#FFD27E' : t.win}"/>`;
+    }
+  }
+  return s;
+}
+function rnd(seed) { let a = seed; return () => { a = (a * 1664525 + 1013904223) % 4294967296; return a / 4294967296; }; }
+function backdrop(p, t) {
+  let s = `<rect width="320" height="360" fill="url(#${p}sky)"/>`;
+  if (t.stars) STARS.forEach(([x, y, r]) => { s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFF7DA" opacity=".85"/>`; });
+  if (t.sun) s += `<circle cx="${t.sun.x}" cy="${t.sun.y}" r="${t.sun.r * 2.4}" fill="url(#${p}glow)" opacity=".6"/><circle cx="${t.sun.x}" cy="${t.sun.y}" r="${t.sun.r}" fill="${t.sun.c}"/>`;
+  if (t.moon) s += `<circle cx="${t.moon.x}" cy="${t.moon.y}" r="${t.moon.r}" fill="${t.moon.c}"/><circle cx="${t.moon.x + 5}" cy="${t.moon.y - 3}" r="${t.moon.r}" fill="${t.sky[0]}"/>`;
+  HOUSES.forEach((h, i) => { s += houseSVG(h, t, i); });
+  if (t.market) {
+    s += `<rect x="0" y="262" width="320" height="6" fill="#B83A30"/>`;
+    for (let x = 0, k = 0; x < 320; x += 20, k++) s += `<path d="M${x} 268 H${x+20} L${x+10} 281 Z" fill="${k % 2 ? '#F4EDE0' : '#D9534F'}"/>`;
+  }
+  s += `<rect x="0" y="292" width="320" height="7" fill="${t.quay}"/><rect x="0" y="299" width="320" height="61" fill="${t.water}"/>`;
+  s += `<g class="ripples" stroke="#FFFFFF" stroke-opacity=".3" stroke-width="2" stroke-linecap="round"><path d="M14 312h30M66 326h22M112 316h26M196 330h30M246 314h26M28 344h20M270 344h28M150 350h24"/></g>`;
+  if (t.sparkle) { const r = rnd(7); for (let k = 0; k < 9; k++) { const x = 10 + r() * 300, y = 306 + r() * 46; s += `<path class="spark" style="--d:-${(r()*2.6).toFixed(2)}s" d="M${x.toFixed(1)} ${(y-4).toFixed(1)} l1.2 2.8 2.8 1.2 -2.8 1.2 -1.2 2.8 -1.2 -2.8 -2.8 -1.2 2.8 -1.2Z" fill="#FFE7B0"/>`; } }
+  if (t.snow) { const r = rnd(3); for (let k = 0; k < 26; k++) s += `<circle class="flake" style="--d:-${(r()*9).toFixed(2)}s;--dur:${(7 + r()*5).toFixed(1)}s" cx="${(r()*320).toFixed(1)}" cy="${(r()*40).toFixed(1)}" r="${(1 + r()*1.8).toFixed(1)}" fill="#FFFFFF" opacity=".9"/>`; }
+  if (t.frame) {
+    const f = t.frame;
+    s += `<path fill-rule="evenodd" d="M0 0H320V360H0Z M26 30H294V292H26Z" fill="${f.wall}"/>`;
+    s += `<rect x="26" y="30" width="268" height="262" fill="none" stroke="${f.mull}" stroke-width="7"/><rect x="156.5" y="30" width="7" height="262" fill="${f.mull}"/><rect x="26" y="150" width="268" height="6" fill="${f.mull}"/><rect x="14" y="290" width="292" height="11" rx="2" fill="${f.mull}"/>`;
+  }
+  if (t.lamp) s += `<circle cx="34" cy="64" r="120" fill="url(#${p}lamp)"/>`;
+  return s;
+}
+function defs(p, t) {
+  const sc = t.sun ? t.sun.c : '#FFFFFF';
+  return `<linearGradient id="${p}sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.sky[0]}"/><stop offset="1" stop-color="${t.sky[1]}"/></linearGradient>
+  <radialGradient id="${p}glow"><stop offset="0" stop-color="${sc}" stop-opacity=".9"/><stop offset="1" stop-color="${sc}" stop-opacity="0"/></radialGradient>
+  <radialGradient id="${p}lamp"><stop offset="0" stop-color="#FFC56E" stop-opacity=".55"/><stop offset="1" stop-color="#FFC56E" stop-opacity="0"/></radialGradient>`;
+}
+function sceneSVG(p, t, vb) {
+  return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>${defs(p, t)}</defs>${backdrop(p, t)}</svg>`;
+}
+function daanSVG(p, t) {
+  const hair = '#9A6D36';
+  return `<svg class="daan" viewBox="0 0 320 360" data-mood="happy" role="img" aria-label="Daan, een vrolijke Amsterdammer met blond haar en een blauwe trui">
+  <defs>${defs(p, t)}
+    <linearGradient id="${p}skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8D8BF"/><stop offset="1" stop-color="#EDBE9E"/></linearGradient>
+    <linearGradient id="${p}hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DDB06A"/><stop offset="1" stop-color="#A57638"/></linearGradient>
+    <linearGradient id="${p}knit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#30487A"/><stop offset="1" stop-color="#1C2B4F"/></linearGradient>
+    <clipPath id="${p}cl"><ellipse cx="122" cy="148" rx="13" ry="9.5"/></clipPath>
+    <clipPath id="${p}cr"><ellipse cx="198" cy="148" rx="13" ry="9.5"/></clipPath>
+  </defs>
+  <g class="bg">${backdrop(p, t)}</g>
+  <g class="bob">
+    <path d="M138 220 C138 250 136 268 133 282 Q160 298 187 282 C184 268 182 250 182 220 Z" fill="#EBB896"/>
+    <path d="M138 228 Q160 252 182 228 L182 246 Q160 264 138 246 Z" fill="#C98E6C" opacity=".38"/>
+    <path d="M30 360 C34 316 64 292 110 282 C126 279 140 278 160 278 C180 278 194 279 210 282 C256 292 286 316 290 360 Z" fill="url(#${p}knit)"/>
+    <path d="M112 300 q7 8 0 16 q-7 8 0 16 q7 8 0 16 M208 300 q-7 8 0 16 q7 8 0 16 q-7 8 0 16 M160 318 q6 7 0 14 q-6 7 0 14 q6 7 0 14" stroke="#40609C" stroke-width="3.2" fill="none" stroke-linecap="round" opacity=".8"/>
+    <path d="M72 304 q10 22 14 56 M248 304 q-10 22 -14 56" stroke="#15213D" stroke-width="2" fill="none" opacity=".5"/>
+    <path d="M127 280 Q160 302 193 280 L199 285 Q160 312 121 285 Z" fill="#F3F1EC"/>
+    <path d="M116 284 Q160 318 204 284" stroke="#3C5B92" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <g class="head">
+      <path d="M92 162 C82 112 100 56 160 50 C220 56 238 112 228 162 C222 128 214 108 200 100 L120 100 C106 108 98 128 92 162 Z" fill="url(#${p}hair)"/>
+      <ellipse cx="92" cy="158" rx="11" ry="19" fill="#EBB896"/><path d="M90 148 q-5 10 1 20" stroke="#C98E6C" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="228" cy="158" rx="11" ry="19" fill="#EBB896"/><path d="M230 148 q5 10 -1 20" stroke="#C98E6C" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M160 62 C214 62 232 102 230 148 C229 180 220 206 202 224 C190 236 176 245 160 246 C144 245 130 236 118 224 C100 206 91 180 90 148 C88 102 106 62 160 62 Z" fill="url(#${p}skin)"/>
+      <path d="M104 188 C112 220 136 240 160 243 C184 240 208 220 216 188 C206 214 186 229 160 231 C134 229 114 214 104 188 Z" fill="#8B6A45" opacity=".17"/>
+      <path d="M134 197 Q160 186 186 197 Q160 203 134 197 Z" fill="#8B6A45" opacity=".14"/>
+      <ellipse cx="160" cy="233" rx="15" ry="7" fill="#8B6A45" opacity=".1"/>
+      <g class="blush"><ellipse cx="114" cy="186" rx="14" ry="7"/><ellipse cx="206" cy="186" rx="14" ry="7"/></g>
+      <g class="eye-open l">
+        <ellipse cx="122" cy="148" rx="13" ry="9.5" fill="#FFFFFF"/>
+        <g clip-path="url(#${p}cl)"><g class="iris"><circle cx="122" cy="149" r="7.4" fill="#3F86C9"/><circle cx="122" cy="149" r="7.4" fill="none" stroke="#24538A" stroke-width="1.6"/><circle cx="122" cy="149" r="3.5" fill="#152033"/><circle cx="124.7" cy="146.3" r="2.1" fill="#FFFFFF"/></g></g>
+        <path d="M108 146 Q122 134 136 146" stroke="#4A321C" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <g class="eye-open r">
+        <ellipse cx="198" cy="148" rx="13" ry="9.5" fill="#FFFFFF"/>
+        <g clip-path="url(#${p}cr)"><g class="iris"><circle cx="198" cy="149" r="7.4" fill="#3F86C9"/><circle cx="198" cy="149" r="7.4" fill="none" stroke="#24538A" stroke-width="1.6"/><circle cx="198" cy="149" r="3.5" fill="#152033"/><circle cx="200.7" cy="146.3" r="2.1" fill="#FFFFFF"/></g></g>
+        <path d="M184 146 Q198 134 212 146" stroke="#4A321C" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <path class="arc l" d="M109 150 Q122 140 135 150" stroke="#4A321C" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path class="arc r" d="M185 150 Q198 140 211 150" stroke="#4A321C" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <g stroke="#6B4A26" stroke-width="7" fill="none" stroke-linecap="round">
+        <g class="br br-normal"><path d="M104 128 Q120 117 140 124"/><path d="M180 124 Q200 117 216 128"/></g>
+        <g class="br br-up"><path d="M104 120 Q120 107 140 115"/><path d="M180 115 Q200 107 216 120"/></g>
+        <g class="br br-think"><path d="M104 129 Q120 123 140 126"/><path d="M180 117 Q200 105 216 119"/></g>
+        <g class="br br-worry"><path d="M104 127 Q122 122 140 116"/><path d="M180 116 Q198 122 216 127"/></g>
+      </g>
+      <path d="M160 152 C159 165 154 174 151 180 Q160 186 169 180" stroke="#C58C6A" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <g class="mouth">
+        <g class="m m-smile"><path d="M139 205 Q160 221 181 205" stroke="#8C4636" stroke-width="3.6" fill="none" stroke-linecap="round"/><path d="M133 200 q-3 5 1 10 M187 200 q3 5 -1 10" stroke="#C58C6A" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+        <g class="m m-grin"><path d="M137 202 Q160 232 183 202 Q160 210 137 202 Z" fill="#6E2A26"/><path d="M141 204 Q160 209 179 204 L177 209 Q160 214 143 209 Z" fill="#FFFFFF"/><path d="M131 199 q-3 5 1 10 M189 199 q3 5 -1 10" stroke="#C58C6A" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+        <g class="m m-laugh"><path d="M134 200 Q160 244 186 200 Q160 208 134 200 Z" fill="#6E2A26"/><path d="M139 202 Q160 207 181 202 L179 208 Q160 213 141 208 Z" fill="#FFFFFF"/><ellipse cx="160" cy="216" rx="10" ry="4.5" fill="#E0747A"/></g>
+        <g class="m m-think"><path d="M147 211 Q158 207 174 209" stroke="#8C4636" stroke-width="3.4" fill="none" stroke-linecap="round"/></g>
+        <g class="m m-o"><ellipse cx="160" cy="211" rx="7.5" ry="9.5" fill="#6E2A26"/></g>
+        <g class="m m-smirk"><path d="M141 207 Q163 219 183 201" stroke="#8C4636" stroke-width="3.6" fill="none" stroke-linecap="round"/><path d="M187 196 q3 5 0 10" stroke="#C58C6A" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+        <g class="m m-worry"><path d="M145 212 Q160 206 175 212" stroke="#8C4636" stroke-width="3.4" fill="none" stroke-linecap="round"/></g>
+        <g class="m m-talk"><ellipse cx="160" cy="209" rx="12" ry="7.5" fill="#6E2A26"/><path d="M149 204 Q160 202 171 204 L170 206.5 Q160 208 150 206.5 Z" fill="#FFFFFF"/></g>
+      </g>
+      <path d="M92 138 C86 84 120 46 166 46 C214 48 240 86 230 138 C227 118 221 106 211 99 C197 91 183 97 169 91 C153 85 139 97 125 95 C110 95 98 112 92 138 Z" fill="url(#${p}hair)"/>
+      <path d="M118 97 C128 64 188 52 224 86 C206 77 186 80 170 91 C154 85 136 92 118 97 Z" fill="#B8883F"/>
+      <path d="M150 91 C141 102 144 112 153 118 C149 107 151 99 160 92 Z" fill="#A57638"/>
+      <path d="M112 64 C130 38 182 32 208 50 C186 44 160 48 140 62 Z" fill="#E7C27F"/>
+      <path d="M136 70 C158 58 186 60 208 72 M128 86 C148 74 180 72 200 82" stroke="#EDCB8C" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".75"/>
+      <path d="M93 126 L100 128 L99 154 L95 151 Z M227 126 L220 128 L221 154 L225 151 Z" fill="${hair}"/>
+    </g>
+  </g>
+</svg>`;
+}
+
+/* ---------- Character control ---------- */
+const MOODS = ['happy','laugh','think','surprised','impressed','wink','concerned'];
+const visibleDaans = () => $$('.view:not([hidden]) .daan');
+function setMood(m) { const mood = MOODS.includes(m) ? m : 'happy'; visibleDaans().forEach(s => s.setAttribute('data-mood', mood)); }
+function applyBlush() { if (!S) return; const v = (.08 + S.klik / 100 * .42).toFixed(2); $$('.daan').forEach(s => s.style.setProperty('--blush', v)); }
+let talkT = null;
+function setTalking(on) { visibleDaans().forEach(s => s.classList.toggle('talking', on)); }
+function fakeTalk(text) { clearTimeout(talkT); setTalking(true); talkT = setTimeout(() => setTalking(false), clamp(String(text).length * 55, 700, 6500)); }
+
+/* ---------- Voice (speech synthesis) ---------- */
+const MALE = /maarten|xander|frank|arnaud|willem|bram|ruben|daan|guus|lars|thijs|\bmale\b|\bman\b/i;
+const TTS = {
+  ok: 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function',
+  voices: [],
+  load() {
+    if (!this.ok) return;
+    try { this.voices = speechSynthesis.getVoices().filter(v => /^nl([-_]|$)/i.test(v.lang)); } catch { this.voices = []; }
+    renderVoiceSelect();
+  },
+  pick() {
+    const vs = this.voices; if (!vs.length) return null;
+    return vs.find(v => S && S.settings.voiceName && v.name === S.settings.voiceName) ||vs.find(v => MALE.test(v.name) && /nl[-_]NL/i.test(v.lang)) || vs.find(v => MALE.test(v.name)) || vs.find(v => /nl[-_]NL/i.test(v.lang)) || vs[0];
+  },
+  stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch {} } clearTimeout(talkT); setTalking(false); },
+  speak(text, opts) {
+    const clean = String(text || '').replace(/\*/g, '').replace(/[«»"]/g, '').trim();
+    if (!clean) return;
+    const animate = !opts || opts.animate !== false;
+    const st = S ? S.settings : {voice:true, rate:.95};
+    if (!st.voice || !this.ok) { if (animate) fakeTalk(clean); return; }
+    this.stop();
+    try {
+      const u = new SpeechSynthesisUtterance(clean);
+      const v = this.pick();
+      if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'nl-NL';
+      u.rate = Number(st.rate) || .95;
+      u.pitch = v && MALE.test(v.name) ? 1 : .8;
+      let started = false;
+      u.onstart = () => { started = true; if (animate) { clearTimeout(talkT); setTalking(true); } };
+      u.onend = u.onerror = () => { if (animate) setTalking(false); };
+      speechSynthesis.speak(u);
+      if (animate) setTimeout(() => { if (!started) fakeTalk(clean); }, 1100);
+    } catch { if (animate) fakeTalk(clean); }
+  },
+};
+
+/* ---------- Toasts ---------- */
+function toast(msg, kind) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  $('#toasts').append(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+/* ---------- Views ---------- */
+function showView(v) {
+  ui.view = v;
+  const map = {start:'#vStart', map:'#vMap', game:'#vGame', book:'#vBook'};
+  Object.entries(map).forEach(([k, sel]) => { $(sel).hidden = k !== v; });
+  $('#hud').hidden = v === 'start' || !S;
+  document.body.classList.toggle('mode-game', v === 'game');
+  $('#nMap').setAttribute('aria-current', v === 'map' ? 'page' : 'false');
+  $('#nBook').setAttribute('aria-current', v === 'book' ? 'page' : 'false');
+  if (v !== 'game') { TTS.stop(); hideHint(); if (dict && dict.active && dict.active()) dict.stop().catch(() => {}); }
+  if (v === 'map') renderMap();
+  if (v === 'book') renderBook();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- HUD ---------- */
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function updateHUD() {
+  if (!S) return;
+  const li = levelOf(S.xp), L = LEVELS[li], N = LEVELS[li + 1];
+  $('#hLvl').textContent = L.code;
+  $('#hLvlName').textContent = L.name;
+  const pct = N ? clamp((S.xp - L.min) / (N.min - L.min) * 100, 0, 100) : 100;
+  $('#hXpBar').style.width = pct + '%';
+  $('#hXpWrap').setAttribute('aria-valuenow', Math.round(pct));
+  $('#hXp').textContent = N ? `${S.xp} / ${N.min} XP` : `${S.xp} XP`;
+  $('#hCombo').textContent = '×' + (1 + Math.min(S.streak, 5) * .1).toFixed(1);
+  const today = ymd(new Date()), yest = ymd(new Date(Date.now() - 864e5));
+  const days = (S.day.date === today || S.day.date === yest) ? S.dayStreak : 0;
+  $('#hDays').textContent = days;
+  const cnt = S.day.date === today ? S.day.count : 0;
+  $('#hGoal').textContent = Math.min(cnt, 10) + '/10';
+  $('#hGoalArc').setAttribute('stroke-dasharray', `${(Math.min(cnt, 10) / 10 * 94.25).toFixed(1)} 94.25`);
+  $('#hKlik').textContent = S.klik;
+  $('#klikBar').style.width = S.klik + '%';
+  $('#klikWrap').setAttribute('aria-valuenow', S.klik);
+  $('#klikNum').textContent = S.klik;
+  $('#klikWord').textContent = KLIK(S.klik)[0];
+  applyBlush();
+}
+
+/* ---------- Game screen ---------- */
+const log = $('#log'), inp = $('#inp');
+const curCh = () => chById(ui.chapter);
+const withName = s => String(s || '').replace(/\{naam\}/g, (S && S.name) || 'jij');
+
+function renderObjectives(ch) {
+  const list = $('#objList');
+  if (!ch.obj.length) {
+    list.innerHTML = `<li class="free-note" style="display:block">Geen vaste doelen. Praat over wat je wilt: elke zin levert XP op.</li>`;
+    $('#objCount').textContent = '∞';
+    return;
+  }
+  const cs = S.chapters[ch.id];
+  list.innerHTML = ch.obj.map(o => {
+    const done = cs.met.includes(o.id);
+    return `<li class="${done ? 'done' : ''}"><span class="box">${icon('check')}</span><div><b>${esc(o.nl)}</b><span>${esc(o.en)}</span></div></li>`;
+  }).join('');
+  $('#objCount').textContent = `${cs.met.length}/${ch.obj.length}`;
+}
+
+async function openChapter(id, opts) {
+  const o = opts || {};
+  const ch = chById(id); if (!ch || !S) return;
+  if (id !== 'free' && !S.chapters[id].unlocked) { toast('Dit hoofdstuk is nog op slot.'); return; }
+  S.current = id; ui.chapter = id; ui.hintUsed = false; ui.spoken = false;
+  showView('game');
+  $('#portrait').innerHTML = daanSVG('pg', THEMES[ch.theme]);
+  applyBlush(); setMood('happy');
+  $('#roleLine').textContent = ch.role ? 'speelt nu: ' + ch.role : 'meubelmaker · Bloemgracht';
+  $('#chNum').textContent = ch.id === 'free' ? 'Altijd open' : 'Hoofdstuk ' + ch.n + ' · ' + ch.rec;
+  $('#chTitle').textContent = ch.title;
+  $('#btnReplay').textContent = ch.id === 'free' ? 'Nieuw gesprek' : 'Opnieuw';
+  $('#objBox').open = !matchMedia('(max-width: 860px)').matches;
+  renderObjectives(ch);
+  hideBanner(); hideHint();
+  log.innerHTML = '<p class="loading">Gesprek laden…</p>';
+  updateHUD();
+  const conv = await loadConvo(id);
+  if (ui.chapter !== id) return;
+  const fresh = ensureOpening(ch, conv);
+  renderLog(conv, fresh);
+  if (fresh) saveConvo(id);
+  const last = conv[conv.length - 1];
+  if (fresh && o.speak !== false) TTS.speak(withName(last.nl));
+  if (last && last.w === 'd' && last.mood) setMood(last.mood);
+  saveProgress(true);
+  if (!coarse) inp.focus();
+  if (!sampleFn && sampleReady) showNoClaude();
+}
+function ensureOpening(ch, conv) {
+  if (conv.length) return false;
+  const o = levelOf(S.xp) <= 1 ? ch.open.easy : ch.open.std;
+  conv.push({w:'d', nl:withName(o.nl), en:withName(o.en), mood:'happy', words:o.words || [], sug:{nl:withName(ch.hint.nl), en:withName(ch.hint.en)}});
+  return true;
+}
+function renderLog(conv, animateLast) {
+  log.innerHTML = '';
+  conv.forEach((m, i) => appendMsg(m, animateLast && i === conv.length - 1));
+  const lastD = [...conv].reverse().find(m => m.w === 'd');
+  ui.lastSug = lastD && lastD.sug ? lastD.sug : null;
+  scrollLog(true);
+}
+function scrollLog(instant) { log.scrollTo({top: log.scrollHeight, behavior: instant || reduced ? 'auto' : 'smooth'}); }
+function scoreClass(s) { return s >= 8 ? 's-good' : s >= 5 ? 's-warn' : 's-bad'; }
+
+function appendMsg(m, animate) {
+  let el;
+  if (m.w === 'd') el = daanMsgEl(m, animate);
+  else if (m.w === 'm') el = meMsgEl(m, animate);
+  else el = sysEl(m);
+  log.append(el);
+  scrollLog();
+  return el;
+}
+function daanMsgEl(m, animate) {
+  const el = document.createElement('div');
+  el.className = 'msg daan';
+  const veiled = !S.settings.translate;
+  el.innerHTML = `<p class="who">Daan</p><div class="bubble"><p class="nl" lang="nl"></p>
+    <div class="btools"><button class="say" type="button" aria-label="Laat Daan dit zeggen">${icon('speaker')}</button>
+    ${m.en ? `<button class="tr${veiled ? ' veiled' : ''}" type="button" title="Tik om de vertaling te tonen" aria-label="Vertaling">${esc(m.en)}</button>` : ''}</div>
+    ${(m.words && m.words.length) ? `<div class="chips">${m.words.map(w => `<button class="chip" type="button" data-say="${esc(w.nl)}"><b>${esc(w.nl)}</b> <span>${esc(w.en)}</span></button>`).join('')}</div>` : ''}</div>`;
+  const p = el.querySelector('.nl');
+  if (animate && !reduced) typeInto(p, m.nl); else p.textContent = m.nl;
+  el.querySelector('.say').addEventListener('click', () => TTS.speak(m.nl));
+  const tr = el.querySelector('.tr');
+  if (tr) tr.addEventListener('click', () => tr.classList.toggle('veiled'));
+  el.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => TTS.speak(c.dataset.say, {animate:false})));
+  return el;
+}
+function typeInto(p, text) {
+  let i = 0; const step = Math.max(1, Math.round(text.length / 70));
+  const t = setInterval(() => { i += step; p.textContent = text.slice(0, i); if (i >= text.length) { clearInterval(t); p.textContent = text; } }, 20);
+}
+function meMsgEl(m, pending) {
+  const el = document.createElement('div');
+  el.className = 'msg me';
+  el.innerHTML = `<div class="bubble"><p lang="nl"></p>${m.sp ? `<span class="sp">${icon('mic')} ingesproken</span>` : ''}</div><div class="fb pending">Daan luistert…</div>`;
+  el.querySelector('p').textContent = m.t;
+  if (m.fb) fillFeedback(el, m);
+  else if (!pending) el.querySelector('.fb').remove();
+  return el;
+}
+function tok(s) { return String(s || '').trim().split(/\s+/).filter(Boolean); }
+function normW(w) { return w.toLowerCase().replace(/[.,!?;:"'«»()‘’“”…]/g, ''); }
+function diffWords(a, b) {
+  const A = tok(a), B = tok(b), n = A.length, m = B.length;
+  if (n > 90 || m > 90) return null;
+  const dp = Array.from({length: n + 1}, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = normW(A[i]) === normW(B[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (normW(A[i]) === normW(B[j])) { out.push(['=', B[j]]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push(['-', A[i]]); i++; }
+    else { out.push(['+', B[j]]); j++; }
+  }
+  while (i < n) out.push(['-', A[i++]]);
+  while (j < m) out.push(['+', B[j++]]);
+  return out;
+}
+function fillFeedback(el, m) {
+  const f = m.fb, box = el.querySelector('.fb');
+  box.classList.remove('pending');
+  const tags = [];
+  if (f.mult > 1) tags.push(`combo ×${f.mult.toFixed(1)}`);
+  if (f.sp) tags.push('spraak +5');
+  if (f.hint) tags.push('hint: halve XP');
+  if (f.obj) tags.push(`doel${f.obj > 1 ? 'en' : ''} +${f.obj * 20}`);
+  const d = f.corrected ? diffWords(m.t, f.corrected) : null;
+  const same = !f.corrected || (d && d.every(x => x[0] === '='));
+  let fix;
+  if (same) fix = `<p class="perfect">${f.score >= 8 ? 'Helemaal goed!' : 'Goed bedoeld, maar het kan duidelijker.'}</p>`;
+  else if (d) fix = `<p class="fix" lang="nl"><span class="lab">Beter:</span>${d.map(([op, w]) => op === '=' ? esc(w) : op === '+' ? `<ins>${esc(w)}</ins>` : `<del>${esc(w)}</del>`).join(' ')}</p>`;
+  else fix = `<p class="fix" lang="nl"><span class="lab">Beter:</span>${esc(f.corrected)}</p>`;
+  const more = (f.errors && f.errors.length) || f.tip;
+  box.innerHTML = `<div class="fb-top"><span class="score ${scoreClass(f.score)}">${f.score}/10</span><span class="xp">+${f.xp} XP</span>${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
+    ${!same ? `<button class="say" type="button" aria-label="Hoor de verbeterde zin" style="margin-left:auto">${icon('speaker')}</button>` : ''}</div>${fix}
+    ${more ? `<details><summary>${f.errors && f.errors.length ? 'Waarom?' : 'Tip'}</summary>
+      ${f.errors && f.errors.length ? `<ul>${f.errors.map(e => `<li><del>${esc(e.wrong)}</del> → <b lang="nl">${esc(e.right)}</b> <span class="why">${esc(e.why)}</span></li>`).join('')}</ul>` : ''}
+      ${f.tip ? `<p class="tip" style="margin-top:6px">${esc(f.tip)}</p>` : ''}</details>` : ''}`;
+  const say = box.querySelector('.say');
+  if (say) say.addEventListener('click', () => TTS.speak(f.corrected));
+}
+function sysEl(m) {
+  const el = document.createElement('div');
+  el.className = 'sys';
+  const ch = chById(m.ch), idx = CH.findIndex(c => c.id === m.ch), next = CH[idx + 1];
+  const stars = [1, 2, 3].map(k => icon('star', k <= m.stars ? '' : 'off')).join('');
+  const nextOpen = next && S.chapters[next.id].unlocked;
+  let lockNote = '';
+  if (next && !nextOpen && next.needKlik) lockNote = `<p class="note">Voor het volgende hoofdstuk moet het meer klikken: klik ${next.needKlik} nodig (nu ${S.klik}). Blijf kletsen met Daan.</p>`;
+  el.innerHTML = `<div class="stars" aria-label="${m.stars} van 3 sterren">${stars}</div><h4>Hoofdstuk voltooid!</h4><p class="xp">+${m.xp} XP</p>
+    ${ch && ch.teaser ? `<p class="teaser" lang="nl">${esc(ch.teaser.nl)}</p><p class="teaser-en">${esc(ch.teaser.en)}</p>` : ''}${lockNote}
+    ${m.closed ? '' : `<div class="row">${next ? `<button class="btn reward small" type="button" data-act="next">${nextOpen ? 'Volgende hoofdstuk' : 'Naar het verhaal'}</button>` : `<button class="btn reward small" type="button" data-act="free">Vrij kletsen</button>`}<button class="btn ghost small" type="button" data-act="stay">Blijf kletsen</button></div>`}`;
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const act = b.dataset.act;
+    m.closed = true; saveConvo(m.ch);
+    if (act === 'stay') { const r = el.querySelector('.row'); if (r) r.remove(); inp.focus(); }
+    else if (act === 'free') openChapter('free');
+    else if (next && S.chapters[next.id].unlocked) openChapter(next.id);
+    else showView('map');
+  });
+  return el;
+}
+
+/* ---------- Composer ---------- */
+function autosize() { inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight + 3, 140) + 'px'; }
+function setBusy(b) {
+  ui.busy = b;
+  $('#btnSend').disabled = b;
+  $('#btnHint').disabled = b;
+  if (!ui.micOff) $('#btnMic').disabled = b;
+}
+function showTyping() {
+  const t = document.createElement('div');
+  t.className = 'typing';
+  t.innerHTML = '<i></i><i></i><i></i><span>Daan denkt na…</span>';
+  log.append(t); scrollLog();
+  return t;
+}
+function showBanner(html, actions) {
+  const b = $('#banner');
+  b.innerHTML = `<p>${html}</p>`;
+  (actions || []).forEach(a => { const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn small ' + (a.cls || ''); btn.textContent = a.label; btn.addEventListener('click', a.fn); b.append(btn); });
+  b.hidden = false;
+}
+function hideBanner() { $('#banner').hidden = true; }
+function showNoClaude() {
+  showBanner('Daan kan hier niet antwoorden. Open deze pagina op claude.ai of in de Claude-app en log in: Daan gebruikt jouw Claude-account om te praten.');
+}
+function hideHint() { $('#hintPop').hidden = true; $('#btnHint').classList.remove('hint-on'); }
+function toggleHint() {
+  const pop = $('#hintPop');
+  if (!pop.hidden) { hideHint(); return; }
+  const s = ui.lastSug;
+  if (!s || !s.nl) { pop.innerHTML = '<p class="note">Nog geen hint. Probeer gewoon iets te zeggen: fouten maken mag!</p>'; pop.hidden = false; return; }
+  ui.hintUsed = true;
+  pop.innerHTML = `<p class="note">Je zou kunnen zeggen:</p><p class="nl" lang="nl"></p><p class="en"></p><div class="row"><button class="btn small" type="button" id="hintUse">Gebruik deze zin</button><button class="say" type="button" aria-label="Hoor de hint" id="hintSay">${icon('speaker')}</button><span class="note">Met een hint krijg je de helft van de XP voor dit bericht.</span></div>`;
+  pop.querySelector('.nl').textContent = s.nl;
+  pop.querySelector('.en').textContent = s.en || '';
+  pop.querySelector('#hintUse').addEventListener('click', () => { inp.value = s.nl; autosize(); hideHint(); inp.focus(); });
+  pop.querySelector('#hintSay').addEventListener('click', () => TTS.speak(s.nl, {animate:false}));
+  pop.hidden = false;
+  $('#btnHint').classList.add('hint-on');
+}
+
+/* ---------- Talking to Claude ---------- */
+let sampleFn = null, sampleReady = false, perms = null, dict = null;
+function buildPrompt(ch, conv, text, spoken) {
+  const li = levelOf(S.xp), L = LEVELS[li];
+  const cs = ch.id === 'free' ? null : S.chapters[ch.id];
+  const open = ch.obj.filter(o => !cs || !cs.met.includes(o.id));
+  const done = ch.obj.filter(o => cs && cs.met.includes(o.id));
+  const name = S.name || 'the player';
+  const lines = conv.filter(m => m.w !== 's').slice(-14).map(m => (m.w === 'd' ? 'Daan: ' + m.nl : name + ': ' + m.t).slice(0, 420)).join('\n');
+  let objText;
+  if (!ch.obj.length) objText = 'This is free talk: there are no objectives. Always return "objectivesMet": [].';
+  else if (open.length) objText = 'Objectives still open (the player must achieve these in Dutch; steer the talk so each one comes up naturally, one at a time):\n' + open.map(o => `- ${o.id}: ${o.en} (${o.nl})`).join('\n') + (done.length ? '\nAlready done: ' + done.map(o => o.en).join('; ') : '');
+  else objText = 'All objectives of this scene are already done. Keep the conversation going naturally and bring in a fun follow-up topic.';
+  const role = ch.role ? `In this scene Daan role-plays as ${ch.role} to help the player rehearse. Speak as that character (formal "u" where it fits); Daan's warmth can shine through.` : 'Speak to the player informally (je/jij).';
+  return [
+'You are DAAN, the main character of "Praat met Daan", a story-driven role-playing game that helps the player learn Dutch by talking with you.',
+'',
+'WHO DAAN IS',
+'- 29, born and raised in Amsterdam (de Jordaan). Furniture maker with a small workshop on the Bloemgracht. Cycles everywhere, loves strong coffee, old canal houses, football and bad puns.',
+'- Warm, witty, patient and consistent. Emotionally mature: kind, a good listener, never pushy. Lightly charming and playful with the player but always respectful; any romance stays subtle and wholesome.',
+'- Uses natural Amsterdam speech ("joh", "hè", "lekker", "gezellig", "nou", "zeg") as fits the player\'s level.',
+'',
+'THE PLAYER',
+`- Name: ${name}. Game level: ${L.code} (${L.name}). Language level guide: ${L.guide}`,
+`- Klik (rapport with Daan): ${S.klik}/100, so Daan sees the player as ${KLIK(S.klik)[1]}. Let your warmth match it.`,
+'',
+`THE SCENE: ${ch.id === 'free' ? 'Free talk' : 'Chapter ' + ch.n + ', "' + ch.title + '"'}`,
+ch.setting,
+role,
+objText,
+'',
+'HOW TO REPLY',
+'- "reply" is ONLY Dutch: 1 to 3 short sentences, matched to the level guide. Never lecture or correct inside "reply"; corrections go in the feedback fields.',
+'- React to what the player actually said, then ask ONE question or give one prompt that moves toward the next open objective.',
+'- If the player writes English or is stuck, stay kind: answer in very simple Dutch and model a sentence they can copy.',
+'- If the player\'s message completes the last open objective, close the scene warmly in character while leaving the door open to keep talking.',
+'- Stay in the story and in character. Never mention being an AI, a game, objectives or scores in "reply".',
+'',
+'EVALUATE ONLY THE PLAYER\'S NEW MESSAGE',
+'- score 0-10 for their Dutch at their level: 10 = correct and natural, with some ambition; 8-9 = tiny slips; 6-7 = clear meaning with a few errors; 3-5 = many errors or partly English; 1-2 = mostly English; 0 = empty or nonsense. A very short but correct answer at A0-A1 can earn 8-9. Be honest; do not inflate.',
+spoken ? '- This message was SPOKEN and transcribed by speech recognition: ignore capitals and punctuation, and do not penalise likely transcription slips.' : '- This message was typed.',
+'- corrected: the whole message rewritten as natural, correct Dutch a native speaker would say, keeping the player\'s meaning and register. If it was already correct, return it unchanged.',
+'- errors: up to 3 most important issues as {"wrong","right","why"}; "why" in plain English, at most 14 words. Empty array if none.',
+'- tip: one short English coaching sentence; praise something specific when it was good.',
+'- objectivesMet: ids from the OPEN list that this message genuinely achieved in Dutch (attempts with errors count).',
+'- klik: an integer from -3 to 5 (effort, curiosity, humour and kindness raise it; rudeness lowers it).',
+'- newWords: 0 to 3 useful words or phrases from your reply or the correction that are likely new at this level; give nouns with de/het.',
+'- suggestion: one thing the player could say next, at their level, in Dutch with an English translation.',
+'- mood: your facial expression for this reply.',
+'',
+'Reply with ONLY this JSON object and nothing else:',
+'{"reply":"...","translation":"English translation of reply","mood":"happy|laugh|think|surprised|impressed|wink|concerned","score":8,"corrected":"...","errors":[{"wrong":"...","right":"...","why":"..."}],"tip":"...","newWords":[{"nl":"de werkplaats","en":"workshop"}],"objectivesMet":["o1"],"klik":2,"suggestion":{"nl":"...","en":"..."}}',
+'',
+'CONVERSATION SO FAR (oldest first):',
+lines || '(nothing yet)',
+'',
+`${name.toUpperCase()}'S NEW MESSAGE:`,
+'"""' + text.slice(0, 1200) + '"""',
+  ].join('\n');
+}
+function normalize(r) {
+  const o = (r && typeof r === 'object' && !Array.isArray(r)) ? r : {};
+  const str = v => (v == null ? '' : String(v)).trim();
+  const sc = Number(o.score);
+  return {
+    reply: str(o.reply) || 'Sorry, wat zei je? Kun je dat nog een keer zeggen?',
+    translation: str(o.translation),
+    mood: MOODS.includes(o.mood) ? o.mood : 'happy',
+    score: Number.isFinite(sc) ? clamp(Math.round(sc), 0, 10) : 5,
+    corrected: str(o.corrected),
+    errors: Array.isArray(o.errors) ? o.errors.filter(e => e && e.right).slice(0, 3).map(e => ({wrong:str(e.wrong), right:str(e.right), why:str(e.why)})) : [],
+    tip: str(o.tip),
+    newWords: Array.isArray(o.newWords) ? o.newWords.filter(w => w && w.nl && w.en).slice(0, 3).map(w => ({nl:str(w.nl), en:str(w.en)})) : [],
+    objectivesMet: Array.isArray(o.objectivesMet) ? o.objectivesMet.map(String) : [],
+    klik: clamp(Math.round(Number(o.klik) || 0), -3, 5),
+    suggestion: o.suggestion && o.suggestion.nl ? {nl:str(o.suggestion.nl), en:str(o.suggestion.en)} : null,
+  };
+}
+function touchDay() {
+  const today = ymd(new Date());
+  if (S.day.date !== today) {
+    const yest = ymd(new Date(Date.now() - 864e5));
+    S.dayStreak = S.day.date === yest ? S.dayStreak + 1 : 1;
+    S.day = {date: today, count: 0};
+  }
+  S.day.count++;
+}
+function refreshUnlocks() {
+  CH.forEach((c, i) => {
+    const cs = S.chapters[c.id];
+    if (cs.unlocked) return;
+    const prev = CH[i - 1];
+    const prevDone = prev ? S.chapters[prev.id].done : true;
+    if (c.needKlik) { if (prevDone && S.klik >= c.needKlik) { cs.unlocked = true; toast('Nieuw hoofdstuk open: ' + c.title, 'reward'); } }
+    else if (prevDone) cs.unlocked = true;
+  });
+}
+function addWords(ws, chId) {
+  ws.forEach(w => {
+    const k = w.nl.toLowerCase();
+    if (S.words.some(x => x.nl.toLowerCase() === k)) return;
+    S.words.push({nl:w.nl, en:w.en, ch:chId, t:Date.now(), k:0});
+  });
+  if (S.words.length > 400) S.words = S.words.slice(-400);
+}
+function addFixes(es) {
+  es.forEach(e => {
+    if (!e.wrong || e.wrong.toLowerCase() === e.right.toLowerCase()) return;
+    if (S.fixes.some(x => x.wrong === e.wrong && x.right === e.right)) return;
+    S.fixes.push({wrong:e.wrong, right:e.right, why:e.why, t:Date.now()});
+  });
+  if (S.fixes.length > 150) S.fixes = S.fixes.slice(-150);
+}
+function checkBadges() {
+  const got = [];
+  BADGES.forEach(b => { if (!S.badges[b.id] && b.test()) { S.badges[b.id] = Date.now(); got.push(b); } });
+  return got;
+}
+function applyResult(ch, meMsg, r, spoken, hintUsed) {
+  const before = levelOf(S.xp);
+  touchDay();
+  S.stats.msgs++; if (spoken) S.stats.spoken++;
+  S.stats.scoreSum += r.score;
+  S.streak = r.score >= 7 ? S.streak + 1 : 0;
+  S.bestStreak = Math.max(S.bestStreak, S.streak);
+  S.stats.perfectRun = r.score >= 9 ? S.stats.perfectRun + 1 : 0;
+  S.stats.bestPerfect = Math.max(S.stats.bestPerfect, S.stats.perfectRun);
+  const mult = 1 + Math.min(S.streak, 5) * .1;
+  let base = r.score * 3; if (hintUsed) base = Math.round(base / 2);
+  let xp = Math.round(base * mult);
+  const sp = spoken && r.score >= 5 ? 5 : 0; xp += sp;
+  const cs = ch.id === 'free' ? null : S.chapters[ch.id];
+  let newly = [];
+  if (cs) {
+    const openIds = ch.obj.map(o => o.id).filter(id => !cs.met.includes(id));
+    newly = [...new Set(r.objectivesMet.filter(id => openIds.includes(id)))];
+    cs.met.push(...newly);
+    cs.scores.push(r.score); if (cs.scores.length > 80) cs.scores = cs.scores.slice(-80);
+    cs.turns++;
+  }
+  xp += newly.length * 20;
+  S.klik = clamp(S.klik + r.klik + newly.length * 2, 0, 100);
+  let done = false, stars = 0, bonus = 0;
+  if (cs && cs.met.length >= ch.obj.length && !cs.cleared) {
+    const avg = cs.scores.reduce((a, b) => a + b, 0) / Math.max(1, cs.scores.length);
+    stars = avg >= 8.5 ? 3 : avg >= 7 ? 2 : 1;
+    bonus = cs.done ? stars * 15 : 100 + stars * 25;
+    cs.done = true; cs.cleared = true; cs.stars = Math.max(cs.stars, stars);
+    xp += bonus; done = true;
+  }
+  S.xp += xp;
+  refreshUnlocks();
+  meMsg.fb = {score:r.score, corrected:r.corrected, errors:r.errors, tip:r.tip, xp: xp - bonus, mult, sp, hint:hintUsed, obj:newly.length};
+  addWords(r.newWords, ch.id);
+  addFixes(r.errors);
+  const after = levelOf(S.xp);
+  return {done, stars, bonus, newly, levelUp: after > before ? after : null, badges: checkBadges()};
+}
+function sampleErrorText(e) {
+  const c = e && e.code;
+  if (c === 'not_granted') return ['Daan mag nog niet antwoorden: deze pagina heeft geen toestemming om Claude te gebruiken.', true];
+  if (['sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(c)) return ['Claude is niet beschikbaar voor dit account, dus Daan kan hier niet antwoorden.', false];
+  if (c === 'rate_limited') return ['Daan heeft even pauze nodig: te veel berichten achter elkaar, of je Claude-limiet is bereikt. Probeer het over een paar minuten opnieuw. Je bericht staat nog in het invoerveld.', false];
+  if (c === 'session_expired') return ['Je bent uitgelogd bij Claude. Log opnieuw in en stuur je bericht nog een keer.', false];
+  if (c === 'refused') return ['Daan kon hier niet op reageren. Zeg het op een andere manier.', false];
+  if (c === 'prompt_too_large') return ['Dit gesprek is te lang geworden. Begin het hoofdstuk opnieuw.', false];
+  if (c === 'invalid_json' || c === 'empty_completion') return ['Daan raakte de draad even kwijt. Stuur je bericht nog een keer.', false];
+  return ['De verbinding met Daan lukte niet. Je bericht staat nog in het invoerveld: probeer het opnieuw.', false];
+}
+async function send() {
+  if (ui.busy || !S) return;
+  if (dict && dict.active && dict.active()) { try { await dict.stop(); } catch {} }
+  const text = inp.value.trim();
+  if (!text) { inp.focus(); return; }
+  const ch = curCh(); if (!ch) return;
+  if (!sampleReady) { toast('Even geduld: Daan is nog onderweg. Probeer het zo opnieuw.'); return; }
+  if (!sampleFn) { showNoClaude(); return; }
+  hideBanner();
+  const spoken = ui.spoken, hintUsed = ui.hintUsed;
+  TTS.stop();
+  const conv = await loadConvo(ch.id);
+  const prompt = buildPrompt(ch, conv, text, spoken);
+  const meMsg = {w:'m', t:text, sp:spoken, fb:null};
+  conv.push(meMsg);
+  const meEl = appendMsg(meMsg, true);
+  inp.value = ''; autosize(); $('#partial').textContent = '';
+  ui.spoken = false; ui.hintUsed = false; hideHint();
+  setBusy(true);
+  const typing = showTyping();
+  setMood('think');
+  let raw;
+  try {
+    raw = await sampleFn.json(prompt, {modelTier: S.settings.depth === 'deep' ? 'default' : 'quick', cache:false});
+  } catch (e) {
+    typing.remove();
+    const k = conv.indexOf(meMsg); if (k >= 0) conv.splice(k, 1);
+    meEl.remove();
+    inp.value = text; autosize(); ui.spoken = spoken; ui.hintUsed = hintUsed;
+    const [msg, permBtn] = sampleErrorText(e);
+    showBanner(esc(msg), permBtn && perms && perms.manage ? [{label:'Toestemming beheren', fn:() => perms.manage().catch(() => toast('Open het menu Permissies van dit artefact.'))}] : []);
+    setMood('concerned'); setBusy(false);
+    return;
+  }
+  typing.remove();
+  const r = normalize(raw);
+  const res = applyResult(ch, meMsg, r, spoken, hintUsed);
+  if (ui.chapter === ch.id && meEl.isConnected) fillFeedback(meEl, meMsg);
+  const dMsg = {w:'d', nl:r.reply, en:r.translation, mood:r.mood, words:r.newWords, sug:r.suggestion};
+  conv.push(dMsg);
+  if (res.done) conv.push({w:'s', kind:'done', ch:ch.id, stars:res.stars, xp:res.bonus});
+  while (conv.length > 40) conv.shift();
+  if (ui.chapter === ch.id) {
+    appendMsg(dMsg, true);
+    ui.lastSug = r.suggestion;
+    setMood(r.mood);
+    TTS.speak(r.reply);
+    if (res.done) setTimeout(() => { if (ui.chapter === ch.id) appendMsg(conv[conv.length - 1]); }, 900);
+    renderObjectives(ch);
+  }
+  updateHUD();
+  res.newly.forEach(id => { const o = ch.obj.find(x => x.id === id); if (o) toast('Doel gehaald: ' + o.nl + ' (+20 XP)', 'reward'); });
+  res.badges.forEach(b => toast('Badge verdiend: ' + b.name, 'reward'));
+  if (res.levelUp != null) setTimeout(() => showLevelUp(res.levelUp), res.done ? 1600 : 700);
+  saveConvo(ch.id); saveProgress();
+  setBusy(false);
+  if (!coarse) inp.focus();
+}
+
+/* ---------- Level up ---------- */
+function showLevelUp(li) {
+  const L = LEVELS[li];
+  $('#luCode').textContent = L.code;
+  $('#luName').textContent = L.name;
+  const lines = {
+    A1:'Kijk eens aan, {naam}! Je bent nu een echte beginner. Ik ga iets meer zeggen, hoor.',
+    A2:'Wauw, {naam}, je gaat hard! Vanaf nu praat ik ook over wat we gedaan hebben.',
+    B1:'Serieus, {naam}? Je praat al gewoon met me. Ik ga wat sneller praten, oké?',
+    B2:'Nou, {naam}, jij bent bijna een Amsterdammer. Ik ga je echt uitdagen nu.',
+    C1:'{naam}, ik ben trots op je. Echt waar. Je spreekt beter Nederlands dan mijn neef.',
+  };
+  $('#luQuote').textContent = '"' + withName(lines[L.code] || 'Goed bezig, {naam}!') + '"';
+  const c = $('#confetti'); c.innerHTML = '';
+  if (!reduced) {
+    const colors = ['#F07A1A','#1E4DA6','#FFD27E','#D23F5B','#8AACF3'];
+    for (let k = 0; k < 28; k++) { const i = document.createElement('i'); i.style.left = (Math.random() * 100) + '%'; i.style.background = colors[k % colors.length]; i.style.animationDelay = (Math.random() * .6) + 's'; c.append(i); }
+  }
+  $('#ovLevel').hidden = false;
+  $('#luOk').focus();
+  setMood('impressed');
+  TTS.speak($('#luQuote').textContent);
+}
+
+/* ---------- Map ---------- */
+function renderMap() {
+  if (!S) return;
+  const li = levelOf(S.xp);
+  const avg = S.stats.msgs ? (S.stats.scoreSum / S.stats.msgs).toFixed(1).replace('.', ',') : '–';
+  const tiles = [[LEVELS[li].code, LEVELS[li].name], [S.xp, 'XP totaal'], [S.words.length, 'woorden'], [avg, 'gem. score'], [S.stats.msgs, 'berichten'], [S.bestStreak, 'beste combo']];
+  $('#mapSummary').innerHTML = tiles.map(([v, l]) => `<div class="sumtile"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
+  const cards = ALL.map(c => {
+    const free = c.id === 'free';
+    const cs = free ? null : S.chapters[c.id];
+    const locked = !free && !cs.unlocked;
+    const stars = cs ? [1, 2, 3].map(k => icon('star', k <= cs.stars ? '' : 'off')).join('') : '';
+    let action;
+    if (locked) {
+      const prev = CH[CH.indexOf(c) - 1];
+      const why = c.needKlik && prev && S.chapters[prev.id].done ? `Klik ${c.needKlik} nodig (nu ${S.klik})` : `Voltooi eerst hoofdstuk ${c.n - 1}`;
+      action = `<p class="ch-lock">${icon('lock')}${esc(why)}${c.needKlik && !(prev && S.chapters[prev.id].done) ? ` en klik ${c.needKlik}` : ''}</p>`;
+    } else {
+      const label = free ? 'Kletsen' : cs.done ? 'Open' : (cs.turns > 0 || cs.met.length) ? 'Verder' : 'Speel';
+      action = `<button class="btn${cs && cs.done ? ' ghost' : ''} small" type="button" data-open="${c.id}">${label}</button>`;
+    }
+    return `<article class="ch-card${locked ? ' locked' : ''}${free ? ' free' : ''}${cs && cs.done ? ' done' : ''}">
+      <div class="ch-art">${sceneSVG('m' + c.id, THEMES[c.theme], '0 70 320 150')}${free ? '' : `<span class="ch-n">${c.n}</span>`}</div>
+      <div class="ch-body"><h3>${esc(c.title)}</h3><p class="en">${esc(c.en)}</p>
+        <div class="ch-meta"><span class="lvl-tag">${esc(c.rec)}</span>${cs ? `<span class="stars-sm" aria-label="${cs.stars} van 3 sterren">${stars}</span><span>${cs.met.length}/${c.obj.length} doelen</span>` : '<span>Geen doelen, altijd XP</span>'}</div>
+        ${action}</div></article>`;
+  }).join('');
+  $('#chapters').innerHTML = cards;
+  $('#badges').innerHTML = BADGES.map(b => `<div class="badge${S.badges[b.id] ? ' on' : ''}"><span class="bic">${icon('medal')}</span><div><b>${esc(b.name)}</b><span>${esc(b.desc)}</span></div></div>`).join('');
+}
+
+/* ---------- Notebook ---------- */
+function setTab(t) {
+  ui.tab = t;
+  [['words','#tWords','#pWords'],['fixes','#tFixes','#pFixes'],['drill','#tDrill','#pDrill']].forEach(([k, tb, pn]) => { $(tb).setAttribute('aria-selected', String(k === t)); $(pn).hidden = k !== t; });
+  renderBook();
+}
+function renderBook() {
+  if (!S) return;
+  $('#tWords').textContent = `Woorden (${S.words.length})`;
+  $('#tFixes').textContent = `Verbeteringen (${S.fixes.length})`;
+  if (ui.tab === 'words') {
+    const q = $('#wordSearch').value.trim().toLowerCase();
+    const ws = S.words.slice().reverse().filter(w => !q || w.nl.toLowerCase().includes(q) || w.en.toLowerCase().includes(q));
+    $('#wordList').innerHTML = S.words.length ? (ws.length ? ws.map(w => `<div class="word"><button class="say" type="button" data-say="${esc(w.nl)}" aria-label="Hoor ${esc(w.nl)}">${icon('speaker')}</button><div><b lang="nl">${esc(w.nl)}</b><span>${esc(w.en)}</span></div></div>`).join('') : '<p class="note">Geen woorden gevonden.</p>')
+      : '<div class="empty"><b>Je schrift is nog leeg</b>Nieuwe woorden uit je gesprekken met Daan komen hier vanzelf te staan.</div>';
+  } else if (ui.tab === 'fixes') {
+    $('#fixList').innerHTML = S.fixes.length ? S.fixes.slice().reverse().map(f => `<div class="fixitem"><del>${esc(f.wrong)}</del> → <ins lang="nl">${esc(f.right)}</ins>${f.why ? `<p>${esc(f.why)}</p>` : ''}</div>`).join('')
+      : '<div class="empty"><b>Nog geen verbeteringen</b>Als Daan een fout in je zin ziet, bewaart hij de les hier.</div>';
+  } else renderDrill();
+}
+function pickWord() {
+  if (!S.words.length) return null;
+  const min = Math.min(...S.words.map(w => w.k || 0));
+  const pool = S.words.filter(w => (w.k || 0) === min && w !== ui.drillWord);
+  const from = pool.length ? pool : S.words;
+  return from[Math.floor(Math.random() * from.length)];
+}
+function renderDrill() {
+  const d = $('#drill');
+  if (S.words.length < 3) { d.innerHTML = '<div class="empty"><b>Eerst wat woorden verzamelen</b>Praat met Daan; zodra je drie woorden in je schrift hebt, kun je hier oefenen. Elk goed antwoord is 3 XP.</div>'; return; }
+  if (!ui.drillWord || !S.words.includes(ui.drillWord)) { ui.drillWord = pickWord(); ui.drillShown = false; }
+  const w = ui.drillWord;
+  d.innerHTML = `<div class="card"><p class="note">Wat betekent dit?</p><p class="front" lang="nl"></p>${ui.drillShown ? '<p class="back"></p>' : ''}<button class="say" type="button" id="drSay" aria-label="Hoor het woord" style="position:absolute;top:12px;right:12px;background:var(--surface-2)">${icon('speaker')}</button></div>
+    <div class="row">${ui.drillShown ? '<button class="btn ghost" type="button" id="drNo">Nog niet</button><button class="btn reward" type="button" id="drYes">Wist ik! +3 XP</button>' : '<button class="btn" type="button" id="drShow">Toon betekenis</button>'}</div>
+    <p class="note">${S.stats.cards} kaarten goed geoefend</p>`;
+  d.querySelector('.front').textContent = w.nl;
+  if (ui.drillShown) d.querySelector('.back').textContent = w.en;
+  $('#drSay').addEventListener('click', () => TTS.speak(w.nl, {animate:false}));
+  if (!ui.drillShown) $('#drShow').addEventListener('click', () => { ui.drillShown = true; renderDrill(); });
+  else {
+    $('#drNo').addEventListener('click', () => { w.k = Math.max(0, (w.k || 0) - 1); nextCard(); });
+    $('#drYes').addEventListener('click', () => { w.k = (w.k || 0) + 1; const before = levelOf(S.xp); S.xp += 3; S.stats.cards++; const nb = checkBadges(); nb.forEach(b => toast('Badge verdiend: ' + b.name, 'reward')); updateHUD(); const after = levelOf(S.xp); nextCard(); if (after > before) showLevelUp(after); });
+  }
+}
+function nextCard() { ui.drillWord = pickWord(); ui.drillShown = false; saveProgress(true); renderDrill(); }
+
+/* ---------- Settings ---------- */
+function renderVoiceSelect() {
+  const sel = $('#setVoiceSel');
+  const vs = TTS.voices;
+  if (!TTS.ok) { sel.innerHTML = '<option>Niet beschikbaar</option>'; sel.disabled = true; $('#voiceNote').textContent = 'Deze browser kan niet hardop voorlezen. Daan beweegt wel zijn mond.'; return; }
+  if (!vs.length) { sel.innerHTML = '<option value="">Standaardstem</option>'; sel.disabled = true; $('#voiceNote').textContent = 'Geen Nederlandse stem gevonden op dit apparaat. Installeer er een in je systeeminstellingen (Taal en spraak) voor de beste uitspraak.'; return; }
+  sel.disabled = false;
+  const cur = TTS.pick();
+  sel.innerHTML = vs.map(v => `<option value="${esc(v.name)}"${cur && v.name === cur.name ? ' selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+  $('#voiceNote').textContent = cur && MALE.test(cur.name) ? '' : 'Tip: kies een mannenstem (zoals Xander, Frank of Maarten) als je die hebt.';
+}
+function openSettings() {
+  if (!S) return;
+  $('#setVoice').checked = !!S.settings.voice;
+  $('#setRate').value = S.settings.rate;
+  $('#rateOut').textContent = Number(S.settings.rate).toFixed(2) + '×';
+  $('#setTr').checked = !!S.settings.translate;
+  $('#dQuick').checked = S.settings.depth !== 'deep';
+  $('#dDeep').checked = S.settings.depth === 'deep';
+  $('#setName').value = S.name;
+  $('#saveNote').textContent = Store.mode === 'db' ? 'Je voortgang wordt bewaard in je Claude-account, privé: alleen jij ziet hem.' : Store.mode === 'local' ? 'Je voortgang wordt op dit apparaat in deze browser bewaard.' : 'Let op: in deze weergave wordt je voortgang niet bewaard.';
+  resetArm(false);
+  TTS.load();
+  $('#ovSet').hidden = false;
+  $('#setClose').focus();
+}
+function closeSettings() { $('#ovSet').hidden = true; saveProgress(); }
+let armT = null;
+function resetArm(on) {
+  const b = $('#setReset');
+  b.dataset.armed = on ? '1' : '';
+  b.textContent = on ? 'Zeker weten? Klik nogmaals om alles te wissen' : 'Alles wissen';
+  clearTimeout(armT);
+  if (on) armT = setTimeout(() => resetArm(false), 5000);
+}
+async function wipeAll() {
+  await Promise.all(['progress', ...ALL.map(c => 'convo-' + c.id)].map(k => Store.remove(k)));
+  Object.keys(CONVOS).forEach(k => delete CONVOS[k]);
+  S = null;
+  $('#ovSet').hidden = true;
+  showStartForm();
+  showView('start');
+}
+
+/* ---------- Start screen ---------- */
+function showStartForm() {
+  $('#startNew').hidden = false; $('#startBack').hidden = true;
+  const b = $('#btnStart'); b.disabled = false; b.textContent = 'Begin het verhaal';
+}
+function showWelcomeBack() {
+  $('#startNew').hidden = true; $('#startBack').hidden = false;
+  const L = LEVELS[levelOf(S.xp)];
+  const doneN = CH.filter(c => S.chapters[c.id].done).length;
+  $('#wbTitle').textContent = 'Welkom terug, ' + S.name + '!';
+  $('#wbLine').textContent = `${L.code} ${L.name} · ${S.xp} XP · ${doneN} van 8 hoofdstukken voltooid · ${S.words.length} woorden in je schrift`;
+}
+let newArm = false;
+
+/* ---------- Dictation ---------- */
+function setupDictation(d) {
+  if (!d) return;
+  dict = d;
+  const mic = $('#btnMic');
+  mic.hidden = false;
+  mic.addEventListener('click', () => {
+    if (ui.micOff) return;
+    if (dict.active()) { dict.stop().catch(() => {}); return; }
+    TTS.stop();
+    dict.start({language:'nl'}).catch(e => {
+      const c = e && e.code;
+      if (c === 'not_granted') { ui.micOff = true; mic.disabled = true; toast('Microfoon niet toegestaan. Typen kan altijd.'); }
+      else if (c === 'unavailable') { ui.micOff = true; mic.hidden = true; toast('Spraakinvoer is hier niet beschikbaar. Typ je antwoord.'); }
+      else if (c === 'rate_limited' || c === 'upstream_error') toast('Spraak lukte even niet. Probeer het opnieuw.');
+    });
+  });
+  dict.onPartial(({text}) => { $('#partial').textContent = text; });
+  dict.onFinal(({text}) => {
+    if (!text) return;
+    inp.value = inp.value ? inp.value + text : text.replace(/^\s+/, '');
+    ui.spoken = true; autosize(); $('#partial').textContent = '';
+  });
+  dict.onState(({state, reason}) => {
+    const on = state !== 'idle';
+    mic.classList.toggle('listening', on);
+    mic.setAttribute('aria-label', on ? 'Stop met spreken' : 'Spreek in het Nederlands');
+    if (!on) {
+      $('#partial').textContent = '';
+      if (reason === 'unavailable') { ui.micOff = true; mic.hidden = true; }
+      if (reason === 'not_granted') { ui.micOff = true; mic.disabled = true; }
+      if (ui.view === 'game' && !coarse) inp.focus();
+    }
+  });
+}
+
+/* ---------- Wiring ---------- */
+function wire() {
+  $('#icCombo').innerHTML = icon('flame'); $('#icDays').innerHTML = icon('cal'); $('#icKlik').innerHTML = icon('heart'); $('#icKlik2').innerHTML = icon('heart');
+  $('#icMap').innerHTML = icon('map'); $('#icBook').innerHTML = icon('book'); $('#icGear').innerHTML = icon('gear');
+  $('#icHow1').innerHTML = icon('mic'); $('#icHow2').innerHTML = icon('check'); $('#icHow3').innerHTML = icon('star');
+  $('#btnBack').innerHTML = icon('back'); $('#btnHint').innerHTML = icon('bulb'); $('#btnMic').innerHTML = icon('mic'); $('#setClose').innerHTML = icon('close');
+
+  $('#portraitStart').innerHTML = daanSVG('ps', THEMES.morning);
+  $('#demoBubble').addEventListener('click', () => TTS.speak('Hoi! Ik ben Daan. Hoe heet jij?'));
+
+  $('#startNew').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#nameIn').value.trim().replace(/\s+/g, ' ');
+    const err = $('#startErr');
+    if (!name) { err.textContent = 'Vul je naam in, dan weet Daan hoe hij je moet noemen.'; err.hidden = false; $('#nameIn').focus(); return; }
+    err.hidden = true;
+    const lv = (document.querySelector('input[name="startLevel"]:checked') || {}).value || 'A0';
+    S = freshState(name.slice(0, 40), lv);
+    saveProgress();
+    openChapter('c1');
+  });
+  $('#btnContinue').addEventListener('click', () => openChapter(S.current && chById(S.current) && (S.current === 'free' || S.chapters[S.current].unlocked) ? S.current : 'c1'));
+  $('#btnToMap').addEventListener('click', () => showView('map'));
+  $('#btnNewGame').addEventListener('click', async e => {
+    const b = e.currentTarget;
+    if (!newArm) { newArm = true; b.textContent = 'Zeker? Je huidige voortgang wordt gewist. Klik nogmaals.'; setTimeout(() => { newArm = false; b.textContent = 'Nieuw spel beginnen'; }, 5000); return; }
+    newArm = false; b.textContent = 'Nieuw spel beginnen';
+    await wipeAll();
+  });
+
+  $('#hudHome').addEventListener('click', () => showView('map'));
+  $('#nMap').addEventListener('click', () => showView('map'));
+  $('#nBook').addEventListener('click', () => showView('book'));
+  $('#nSet').addEventListener('click', openSettings);
+  $('#btnBack').addEventListener('click', () => showView('map'));
+  $('#chapters').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openChapter(b.dataset.open); });
+
+  let replayArm = false, replayT = null;
+  $('#btnReplay').addEventListener('click', e => {
+    const b = e.currentTarget, ch = curCh(); if (!ch || ui.busy) return;
+    if (!replayArm) { replayArm = true; b.textContent = 'Zeker?'; replayT = setTimeout(() => { replayArm = false; b.textContent = ch.id === 'free' ? 'Nieuw gesprek' : 'Opnieuw'; }, 4000); return; }
+    clearTimeout(replayT); replayArm = false;
+    CONVOS[ch.id] = [];
+    if (ch.id !== 'free') { const cs = S.chapters[ch.id]; cs.met = []; cs.scores = []; cs.turns = 0; cs.cleared = false; }
+    saveConvo(ch.id); saveProgress();
+    openChapter(ch.id);
+  });
+
+  $('#composer').addEventListener('submit', e => { e.preventDefault(); send(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !coarse && !e.isComposing) { e.preventDefault(); send(); } });
+  inp.addEventListener('input', () => { autosize(); if (!inp.value.trim()) ui.spoken = false; });
+  $('#btnHint').addEventListener('click', toggleHint);
+
+  $('#tWords').addEventListener('click', () => setTab('words'));
+  $('#tFixes').addEventListener('click', () => setTab('fixes'));
+  $('#tDrill').addEventListener('click', () => setTab('drill'));
+  $('#wordSearch').addEventListener('input', renderBook);
+  $('#wordList').addEventListener('click', e => { const b = e.target.closest('[data-say]'); if (b) TTS.speak(b.dataset.say, {animate:false}); });
+
+  $('#setClose').addEventListener('click', closeSettings);
+  $('#ovSet').addEventListener('click', e => { if (e.target.id === 'ovSet') closeSettings(); });
+  $('#setVoice').addEventListener('change', e => { S.settings.voice = e.target.checked; if (!e.target.checked) TTS.stop(); });
+  $('#setVoiceSel').addEventListener('change', e => { S.settings.voiceName = e.target.value; renderVoiceSelect(); });
+  $('#setRate').addEventListener('input', e => { S.settings.rate = Number(e.target.value); $('#rateOut').textContent = S.settings.rate.toFixed(2) + '×'; });
+  $('#setTest').addEventListener('click', () => TTS.speak('Hoi! Zo klink ik. Lekker duidelijk, hè?', {animate:false}));
+  $('#setTr').addEventListener('change', e => { S.settings.translate = e.target.checked; $$('.tr').forEach(t => t.classList.toggle('veiled', !e.target.checked)); });
+  $$('input[name="depth"]').forEach(r => r.addEventListener('change', e => { if (e.target.checked) S.settings.depth = e.target.value; }));
+  $('#setName').addEventListener('change', e => { const v = e.target.value.trim(); if (v) S.name = v.slice(0, 40); });
+  $('#setReset').addEventListener('click', e => { if (e.currentTarget.dataset.armed) wipeAll(); else resetArm(true); });
+
+  $('#luOk').addEventListener('click', () => { $('#ovLevel').hidden = true; if (ui.view === 'game' && !coarse) inp.focus(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('#ovSet').hidden) closeSettings();
+    else if (!$('#ovLevel').hidden) $('#ovLevel').hidden = true;
+    else if (!$('#hintPop').hidden) hideHint();
+  });
+
+  if (TTS.ok) { TTS.load(); try { speechSynthesis.addEventListener('voiceschanged', () => TTS.load()); } catch {} }
+  window.claude && window.claude.hot && typeof window.claude.hot.snapshot === 'function' && window.claude.hot.snapshot(() => ({view: ui.view, ch: ui.chapter, draft: inp.value}));
+}
+
+/* ---------- Boot ---------- */
+async function start(hot) {
+  wire();
+  const resume = hot && typeof hot === 'object' ? hot : {};
+  use('sample').then(fn => { sampleFn = (typeof fn === 'function' && fn) ? fn : null; sampleReady = true; if (!sampleFn && ui.view === 'game') showNoClaude(); });
+  use('permissions').then(p => { perms = p; });
+  use('dictation').then(setupDictation);
+  await Store.init();
+  const p = await Store.load('progress');
+  $('#loadNote').textContent = Store.mode === 'db' ? 'Je voortgang wordt privé bewaard in je Claude-account.' : Store.mode === 'local' ? 'Je voortgang wordt op dit apparaat bewaard.' : 'Let op: in deze weergave wordt je voortgang niet bewaard.';
+  if (p && p.v === 1 && p.name) {
+    S = hydrate(p);
+    refreshUnlocks();
+    updateHUD();
+    showWelcomeBack();
+    if (resume.view === 'game' && resume.ch && chById(resume.ch)) {
+      await openChapter(resume.ch, {speak:false});
+      if (resume.draft) { inp.value = resume.draft; autosize(); }
+    } else if (resume.view === 'map') showView('map');
+    else if (resume.view === 'book') showView('book');
+  } else {
+    showStartForm();
+  }
+}
+window.claude && window.claude.hot && typeof window.claude.hot.ready === 'function'
+  ? window.claude.hot.ready(start)
+  : start((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+</script>
